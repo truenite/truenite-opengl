@@ -144,14 +144,12 @@ void specialKeys(int c, int x, int y){
     switch (c)
     {
         case GLUT_KEY_UP:
-            zoom = zoom -.001;
-            gluOrtho2D(-zoom,zoom,-zoom,zoom);
+            gluOrtho2D(-zoom+.05,zoom-.05,-zoom+.05,zoom-.05);
             glutPostRedisplay();
             break;
 
         case GLUT_KEY_DOWN:
-            zoom = zoom +.001;;
-            gluOrtho2D(-zoom,zoom,-zoom,zoom);
+            gluOrtho2D(-zoom-.05,zoom+.05,-zoom-.05,zoom+.05);
             glutPostRedisplay();
             break;
     }
