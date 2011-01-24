@@ -8,7 +8,7 @@ float delta=0.1;
 void myTimer(int i) {
 	t += delta;
 	glutPostRedisplay();
-    glutTimerFunc(33,myTimer,1);
+    glutTimerFunc(1000,myTimer,1);
 
 }
 
