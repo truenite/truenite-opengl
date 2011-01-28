@@ -33,12 +33,25 @@ void initValores(){
      gluOrtho2D(-1.0, 1.0, -1.0, 1.0);
 }
 
+void specialI(int c, int x, int y){
+	if(c == GLUT_KEY_RIGHT) {
+		figura = (figura/10)*10+(((figura-1)%10+1)%4)+1;
+		glutPostRedisplay();
+	}
+}
+
+void mouseI(int button, int state, int x, int y){
+	if(button == GLUT_LEFT_BUTTON && state == GLUT_DOWN){
+			figura = (figura/10)*10+(((figura-1)%10+1)%4)+1;
+			glutPostRedisplay();
+		}
+}
 
 main( ){
       glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
       glutInitWindowSize(500,500);
       glutInitWindowPosition(0,0);
-      glutCreateWindow("animacion1");
+      glutCreateWindow("T4 Viborita - Diego Garcia - 1162205");
 
         // registra función de deplegado
         glutDisplayFunc(myDisplay);
