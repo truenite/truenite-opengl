@@ -166,7 +166,7 @@ void myTimer(int i) {
         canTurn=1;
     }
 	glutPostRedisplay();
-    glutTimerFunc(500,myTimer,1);
+    glutTimerFunc(250,myTimer,1);
 
 }
 
