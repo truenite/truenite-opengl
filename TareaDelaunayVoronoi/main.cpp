@@ -9,7 +9,8 @@ Autor 1: 1162205 Diego Alfonso García Mendiburu
 #include <GL/glut.h>
 #include <stdio.h>
 #include <math.h>
-#define M_PI 3.14159265358979323846f
+#include "triangulo.c"
+#include "circulo.c"
 
 float rotationX=0.0;
 float rotationY=0.0;
@@ -22,23 +23,11 @@ int agregados = 0;
 float pos[] = {0.0,0.0,0.0,0.0,0.0,0.0,0.0};
 int ventanaX = 500;
 int ventanaY = 500;
+int puntoSeleccionado = -1;
+int dibujarTriangulo = 1;
+int dibujarCirculo = 1;
+int dibujarVertices = 1;
 
-void glCircle3f(GLfloat x, GLfloat y, GLfloat radius) {
-    float angle;
-    glPushMatrix();
-    glTranslatef(x,y,0);
-    glLoadIdentity();
-    glDisable(GL_TEXTURE_2D);
-    glLineWidth(1000.0f);
-    glBegin(GL_LINE_LOOP);
-    for(int i = 0; i < 100; i++) {
-        angle = i*2*M_PI/100;
-        glVertex2f(x + (cos(angle) * radius), y + (sin(angle) * radius));
-    }
-    glEnd();
-    glEnable(GL_TEXTURE_2D);
-    glPopMatrix();
-}
 
 void calcularCircuncentro(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2, GLfloat x3, GLfloat y3){
 
@@ -59,67 +48,72 @@ void calcularCircuncentro(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2, GLfloa
 
     GLfloat circunX = ((-BCx * BCmPrime)+BCy+(ABx*ABmPrime)-ABy)/(ABmPrime-BCmPrime);
     GLfloat circunY = (circunX*ABmPrime)-(ABx*ABmPrime)+(ABy);
-    glColor3f(0.0f, 1.0f, 0.0f);
-    glPushMatrix();
+    glColor3f(1.0f, 1.0f, 0.0f);
+    /*glPushMatrix();
         glTranslatef(circunX,circunY,0);
         glutSolidSphere(0.03,20,20);
-    glPopMatrix();
-    GLfloat radio = sqrt(pow(x1-circunX,2)+pow(y1-circunY,2));
-    glCircle3f(circunX,circunY,radio);
+    glPopMatrix();*/
+    GLfloat radio = calcularRadio(x1,y1,circunX,circunY);
+    if(dibujarCirculo == 1)
+        glCircle3f(circunX,circunY,radio);
+}
 
+void drawVertices(){
+    if(dibujarVertices == 1){
+        if(agregados > 0){
+            if(puntoSeleccionado == 0)
+                glColor3f(0.0f, 1.0f, 0.0f);
+            else
+                glColor3f(0.0f, 0.0f, 0.0f);
+            glPushMatrix();
+                glTranslatef(pos[0],pos[1],0);
+                glutSolidSphere(0.03,20,20);
+            glPopMatrix();
+        }
+        if(agregados > 1){
+            if(puntoSeleccionado == 1)
+                glColor3f(0.0f, 1.0f, 0.0f);
+            else
+                glColor3f(0.0f, 0.0f, 0.0f);
+            glPushMatrix();
+                glTranslatef(pos[2],pos[3],0);
+                glutSolidSphere(0.03,20,20);
+            glPopMatrix();
+        }
+        if(agregados > 2){
+            if(puntoSeleccionado == 2)
+                glColor3f(0.0f, 1.0f, 0.0f);
+            else
+                glColor3f(0.0f, 0.0f, 0.0f);
+            glPushMatrix();
+                glTranslatef(pos[4],pos[5],0);
+                glutSolidSphere(0.03,20,20);
+            glPopMatrix();
 
+            glColor3f(0.0f, 0.0f, 0.0f);
+        }
+    }
 }
 
 void display(){
     glColor3f(0,0,0);
     glClear(GL_COLOR_BUFFER_BIT);
-    glPointSize(10);
 
-    glBegin(GL_POINTS);
-        glVertex2f(1,1);
-        glVertex2f(-1,1);
-        glVertex2f(1,-1);
-        glVertex2f(-1,-1);
-    glEnd();
+    drawVertices();
 
-    if(agregados > 0){
-        glPushMatrix();
-            glTranslatef(pos[0],pos[1],0);
-            glutSolidSphere(0.03,20,20);
-        glPopMatrix();
-    }
-    if(agregados > 1){
-        glPushMatrix();
-            glTranslatef(pos[2],pos[3],0);
-            glutSolidSphere(0.03,20,20);
-        glPopMatrix();
-    }
     if(agregados > 2){
-        glPushMatrix();
-            glTranslatef(pos[4],pos[5],0);
-            glutSolidSphere(0.03,20,20);
-        glPopMatrix();
-
-        // Dibujamos triángulo
-        glBegin(GL_LINES);
-            glVertex2f(pos[0],pos[1]);
-            glVertex2f(pos[2],pos[3]);
-            glVertex2f(pos[2],pos[3]);
-            glVertex2f(pos[4],pos[5]);
-            glVertex2f(pos[4],pos[5]);
-            glVertex2f(pos[0],pos[1]);
-        glEnd();
+        if(dibujarTriangulo == 1){
+            glBegin(GL_LINES);
+                glVertex2f(pos[0],pos[1]);
+                glVertex2f(pos[2],pos[3]);
+                glVertex2f(pos[2],pos[3]);
+                glVertex2f(pos[4],pos[5]);
+                glVertex2f(pos[4],pos[5]);
+                glVertex2f(pos[0],pos[1]);
+            glEnd();
+        }
         calcularCircuncentro(pos[0],pos[1],pos[2],pos[3],pos[4],pos[5]);
     }
-
-
-
-    /*
-    glPushMatrix();
-        glTranslatef(20,20,0);
-        glutSolidSphere(50,20,20);
-        printf("dibujando 1  en x= %f  y=%f",pos[0],pos[1]);
-    glPopMatrix();*/
     glFlush();
 }
 
@@ -151,18 +145,32 @@ void mouse(int button, int state, int x, int y){
             pos[5] = (float)(ventanaY/2 - y)/ventanaY*2;
             agregados++;
         }
+        GLfloat xMouse = (float)(ventanaX/2 - x)/ventanaX*-2;
+        GLfloat yMouse = (float)(ventanaY/2 - y)/ventanaY*2;
+
+        if(estaDentroP(xMouse,yMouse,pos[0],pos[1],.03)){
+            puntoSeleccionado = 0;
+        }
+        else if(estaDentroP(xMouse,yMouse,pos[2],pos[3],.03)){
+            puntoSeleccionado = 1;
+        }
+        else if(estaDentroP(xMouse,yMouse,pos[4],pos[5],.03)){
+            puntoSeleccionado = 2;
+        }else puntoSeleccionado = -1;
     }else{
         mouseDown = false;
+        puntoSeleccionado = -1;
     }
     glutPostRedisplay();
 }
 
 void mouseMotion(int x, int y){
-    /*if(mouseDown){
-        rotationX = y - prevY;
-        rotationY = x - prevX;
+    //printf("ASa\n");
+    if(mouseDown && puntoSeleccionado >= 0){
+        pos[2*puntoSeleccionado] = (float)(ventanaX/2 - x)/ventanaX*-2;
+        pos[(2*puntoSeleccionado)+1] = (float)(ventanaY/2 - y)/ventanaY*2;
         glutPostRedisplay();
-    }*/
+    }
 }
 
 
@@ -170,6 +178,20 @@ void reshape(int w, int h){
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glViewport(0,0,w,h);
+}
+
+
+void key(unsigned char key, int x, int y){
+    printf("%c  dibujarCirculo = %i\n",key,dibujarCirculo);
+    if(key == 'c') dibujarCirculo = (dibujarCirculo+1)%2;
+    if(key == 'C') dibujarCirculo = (dibujarCirculo+1)%2;
+    if(key == 't') dibujarTriangulo = (dibujarTriangulo+1)%2;
+    if(key == 'T') dibujarTriangulo = (dibujarTriangulo+1)%2;
+    if(key == 'p') dibujarVertices = (dibujarVertices+1)%2;
+    if(key == 'P') dibujarVertices = (dibujarVertices+1)%2;
+    if(key == 'i') agregados = 0;
+    if(key == 'I') agregados = 0;
+    glutPostRedisplay();
 }
 
 main(){
@@ -183,6 +205,9 @@ main(){
 
     glutReshapeFunc(reshape);
     glutMouseFunc(mouse);
+    glutMotionFunc(mouseMotion);
+
+    glutKeyboardFunc(key);
     initValores();
 
     glutMainLoop();
