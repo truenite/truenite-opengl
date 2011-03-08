@@ -10,3 +10,9 @@
 	<GL/gl.h>
 	<GL/glu.h>
 
+1299261972 source:c:\users\deco\truenite-opengl\testglut\main.cpp
+	<windows.h>
+	<GLUT/glut.h>
+	<GL/glut.h>
+	<stdlib.h>
+
