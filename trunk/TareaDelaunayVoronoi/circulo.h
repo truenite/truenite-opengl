@@ -8,5 +8,6 @@ typedef struct circulo{
 
 Circulo *crearCirculo(GLfloat x, GLfloat y, GLfloat radio);
 void glCircle3f(GLfloat x, GLfloat y, GLfloat radius);
-GLfloat calcularRadio(GLfloat x1, GLfloat x2, GLfloat y1, GLfloat y2);
-int estaDentro(GLfloat x, GLfloat y, Circulo *circulo);
+GLfloat calcularRadio(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2);
+int estaDentroC(GLfloat x, GLfloat y, Circulo *circulo);
+int estaDentroP(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2, GLfloat radio);

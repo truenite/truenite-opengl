@@ -10,37 +10,37 @@ Autor 1: 1162205 Diego Alfonso García Mendiburu
 #include <stdio.h>
 #include <math.h>
 #include "triangulo.c"
+#include "vertice.c"
 #include "circulo.c"
 
-float rotationX=0.0;
-float rotationY=0.0;
-float prevX=0.0;
-float prevY=0.0;
 bool mouseDown=false;
-float viewer[]= {0.0, 0.0, 7.0};
-int displayMode=1;
-int agregados = 0;
-float pos[] = {0.0,0.0,0.0,0.0,0.0,0.0,0.0};
-int ventanaX = 500;
-int ventanaY = 500;
-int puntoSeleccionado = -1;
-int dibujarTriangulo = 1;
-int dibujarCirculo = 1;
-int dibujarVertices = 1;
+GLint agregados = 0;
+GLfloat pos[] = {0.0,0.0,0.0,0.0,0.0,0.0,0.0};
+GLint ventanaX = 500;
+GLint ventanaY = 500;
+GLint puntoSeleccionado = -1;
+GLint dibujarTriangulo = 1;
+GLint dibujarCirculo = 1;
+GLint dibujarVertices = 1;
+GLint dibujarVerticesVoronoi = 1;
+GLint dibujarVoronoi = 1;
+Triangulo *headT;
+Vertice *headV;
+Vertice *Voronoi;
+GLfloat radioVertice = .03;
 
+Circulo *calcularCircuncentro(Vertice *v1, Vertice *v2, Vertice *v3){
 
-void calcularCircuncentro(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2, GLfloat x3, GLfloat y3){
-
-    GLfloat ABx = (x1 + x2)/2;
-    GLfloat ABy = (y1 + y2)/2;
-    GLfloat BCx = (x3 + x2)/2;
-    GLfloat BCy = (y3 + y2)/2;
-    GLfloat ABm = (y1 - y2)/(x1 - x2);
+    GLfloat ABx = (v1->x + v2->x)/2;
+    GLfloat ABy = (v1->y + v2->y)/2;
+    GLfloat BCx = (v3->x + v2->x)/2;
+    GLfloat BCy = (v3->y + v2->y)/2;
+    GLfloat ABm = (v1->y - v2->y)/(v1->x - v2->x);
     GLfloat ABmPrime = 0;
     if(ABm != 0)
         ABmPrime = -1/ABm;
     else ABmPrime = 0;
-    GLfloat BCm = (y3 - y2)/(x3 - x2);
+    GLfloat BCm = (v3->y - v2->y)/(v3->x - v2->x);
     GLfloat BCmPrime = 0;
     if(BCm != 0)
         BCmPrime = -1/BCm;
@@ -49,49 +49,93 @@ void calcularCircuncentro(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2, GLfloa
     GLfloat circunX = ((-BCx * BCmPrime)+BCy+(ABx*ABmPrime)-ABy)/(ABmPrime-BCmPrime);
     GLfloat circunY = (circunX*ABmPrime)-(ABx*ABmPrime)+(ABy);
     glColor3f(1.0f, 1.0f, 0.0f);
-    /*glPushMatrix();
-        glTranslatef(circunX,circunY,0);
-        glutSolidSphere(0.03,20,20);
-    glPopMatrix();*/
-    GLfloat radio = calcularRadio(x1,y1,circunX,circunY);
-    if(dibujarCirculo == 1)
+    GLfloat radio = calcularRadio(v1->x,v1->y,circunX,circunY);
+
+    Vertice *temp = headV;
+    Triangulo *triangulo = crearTriangulo(v1->x,v1->y,v2->x,v2->y,v3->x,v3->y,circunX,circunY);
+
+    for(;temp->next;temp=temp->next){
+        if(esVertice(temp->x,temp->y,triangulo) == 0 && estaDentroP(temp->x,temp->y,circunX,circunY,radio) == 1){
+            free(triangulo);
+            return NULL;
+        }
+    }
+    if(esVertice(temp->x,temp->y,triangulo) == 0 && estaDentroP(temp->x,temp->y,circunX,circunY,radio) == 1){
+        free(triangulo);
+        return NULL;
+    }
+    if(headT == NULL){
+        headT = triangulo;
+    }else{
+        Triangulo *temp2 = headT;
+        for(;temp2->next;temp2=temp2->next)
+            ;
+        temp2->next = triangulo;
+    }
+    Circulo *circ = crearCirculo(circunX,circunY,radio);
+    /*if(dibujarCirculo == 1){
         glCircle3f(circunX,circunY,radio);
+    }*/
+    return circ;
+}
+
+void drawTriangulo(Vertice *v1, Vertice *v2, Vertice *v3){
+    if(dibujarTriangulo == 1){
+        glColor3f(0.0f, 0.0f, 0.0f);
+        glBegin(GL_LINES);
+            glVertex2f(v1->x,v1->y);
+            glVertex2f(v2->x,v2->y);
+            glVertex2f(v2->x,v2->y);
+            glVertex2f(v3->x,v3->y);
+            glVertex2f(v3->x,v3->y);
+            glVertex2f(v1->x,v1->y);
+        glEnd();
+    }
+
+}
+
+void drawTriangulos(){
+    if(headT != NULL && dibujarTriangulo == 1){
+        Triangulo *temp = headT;
+        for(;temp->next;temp=temp->next)
+            drawTriangulo(temp->x1,temp->y1,temp->x2,temp->y2,temp->x3,temp->y3);
+        drawTriangulo(temp->x1,temp->y1,temp->x2,temp->y2,temp->x3,temp->y3);
+    }
+}
+
+void drawVoronoi(){
+
+
 }
 
 void drawVertices(){
     if(dibujarVertices == 1){
-        if(agregados > 0){
-            if(puntoSeleccionado == 0)
+        GLint i = 0;
+        Vertice *temp=headV;
+        if(temp!=NULL){
+            for(;temp->next;temp=temp->next){
+                if(i == puntoSeleccionado)
+                    glColor3f(0.0f, 1.0f, 0.0f);
+                else
+                    glColor3f(0.0f, 0.0f, 0.0f);
+                glPushMatrix();
+                    glTranslatef(temp->x,temp->y,0);
+                    glutSolidSphere(radioVertice,20,20);
+                glPopMatrix();
+                i++;
+            }
+            i++;
+            if(i == puntoSeleccionado)
                 glColor3f(0.0f, 1.0f, 0.0f);
             else
                 glColor3f(0.0f, 0.0f, 0.0f);
             glPushMatrix();
-                glTranslatef(pos[0],pos[1],0);
-                glutSolidSphere(0.03,20,20);
+                glTranslatef(temp->x,temp->y,0);
+                glutSolidSphere(radioVertice,20,20);
             glPopMatrix();
+            i++;
         }
-        if(agregados > 1){
-            if(puntoSeleccionado == 1)
-                glColor3f(0.0f, 1.0f, 0.0f);
-            else
-                glColor3f(0.0f, 0.0f, 0.0f);
-            glPushMatrix();
-                glTranslatef(pos[2],pos[3],0);
-                glutSolidSphere(0.03,20,20);
-            glPopMatrix();
-        }
-        if(agregados > 2){
-            if(puntoSeleccionado == 2)
-                glColor3f(0.0f, 1.0f, 0.0f);
-            else
-                glColor3f(0.0f, 0.0f, 0.0f);
-            glPushMatrix();
-                glTranslatef(pos[4],pos[5],0);
-                glutSolidSphere(0.03,20,20);
-            glPopMatrix();
-
-            glColor3f(0.0f, 0.0f, 0.0f);
-        }
+        glColor3f(0.0f, 0.0f, 0.0f);
     }
 }
 
@@ -102,61 +146,80 @@ void display(){
     drawVertices();
 
     if(agregados > 2){
-        if(dibujarTriangulo == 1){
-            glBegin(GL_LINES);
-                glVertex2f(pos[0],pos[1]);
-                glVertex2f(pos[2],pos[3]);
-                glVertex2f(pos[2],pos[3]);
-                glVertex2f(pos[4],pos[5]);
-                glVertex2f(pos[4],pos[5]);
-                glVertex2f(pos[0],pos[1]);
-            glEnd();
+        Vertice *temp = headV;
+        Vertice *temp2 = temp->next;
+        Vertice *temp3 = temp2->next;
+        while(temp->next != NULL){
+            temp2 = temp->next;
+            while(temp2->next != NULL){
+                temp3 = temp2->next;
+                while(temp3->next != NULL){
+                    calcularCircuncentro(temp,temp2,temp3);
+                    Circulo *circulo = calcularCircuncentro(temp,temp2,temp3);
+                    if(circulo != NULL){
+                        if(dibujarCirculo == 1)
+                            glCircle3f(circulo->x,circulo->y,circulo->radio);
+                    }
+                    temp3=temp3->next;
+                }
+                calcularCircuncentro(temp,temp2,temp3);
+                Circulo *circulo = calcularCircuncentro(temp,temp2,temp3);
+                if(circulo != NULL){
+                    if(dibujarCirculo == 1)
+                        glCircle3f(circulo->x,circulo->y,circulo->radio);
+                }
+                temp2 = temp2->next;
+            }
+            calcularCircuncentro(temp,temp2,temp3);
+            Circulo *circulo = calcularCircuncentro(temp,temp2,temp3);
+            if(circulo != NULL){
+                if(dibujarCirculo == 1)
+                    glCircle3f(circulo->x,circulo->y,circulo->radio);
+            }
+            temp=temp->next;
         }
-        calcularCircuncentro(pos[0],pos[1],pos[2],pos[3],pos[4],pos[5]);
+        drawTriangulos();
     }
     glFlush();
 }
 
 void initValores(){
-
-     glClearColor(1,1,1,1);
-     glColor3f(0,0,0);
-     glMatrixMode(GL_PROJECTION);
-     glLoadIdentity();
-     gluOrtho2D(-250,250,-250,250);
+    glClearColor(1,1,1,1);
+    glColor3f(0,0,0);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluOrtho2D(-250,250,-250,250);
+    headV = NULL;
+    headT = NULL;
+    Voronoi = NULL;
 }
 
 void mouse(int button, int state, int x, int y){
     if(button == GLUT_LEFT_BUTTON && state==GLUT_DOWN){
         mouseDown = true;
-        if(agregados==0){
-            pos[0] = (float)(ventanaX/2 - x)/ventanaX*-2;
-            pos[1] = (float)(ventanaY/2 - y)/ventanaY*2;
-            agregados++;
-            //printf("agregados : %i  x= %f y= %f\n",agregados,pos[0],pos[1]);
-        }
-        else if(agregados==1){
-            pos[2] = (float)(ventanaX/2 - x)/ventanaX*-2;
-            pos[3] = (float)(ventanaY/2 - y)/ventanaY*2;
-            agregados++;
-        }
-        else if(agregados==2){
-            pos[4] = (float)(ventanaX/2 - x)/ventanaX*-2;
-            pos[5] = (float)(ventanaY/2 - y)/ventanaY*2;
-            agregados++;
-        }
+        GLint i = 0;
         GLfloat xMouse = (float)(ventanaX/2 - x)/ventanaX*-2;
         GLfloat yMouse = (float)(ventanaY/2 - y)/ventanaY*2;
-
-        if(estaDentroP(xMouse,yMouse,pos[0],pos[1],.03)){
-            puntoSeleccionado = 0;
+        Vertice *temp=headV;
+        if(temp==NULL){
+            headV=crearVertice((float)(ventanaX/2 - x)/ventanaX*-2,(float)(ventanaY/2 - y)/ventanaY*2);
+            agregados++;
         }
-        else if(estaDentroP(xMouse,yMouse,pos[2],pos[3],.03)){
-            puntoSeleccionado = 1;
+        else{
+            for(;temp->next;temp=temp->next){
+                if(estaDentroP(xMouse,yMouse,temp->x,temp->y,radioVertice) == 1)
+                    puntoSeleccionado = i;
+                i++;
+            }
+            i++;
+            if(estaDentroP(xMouse,yMouse,temp->x,temp->y,radioVertice) == 1)
+                puntoSeleccionado = i;
+            if(puntoSeleccionado == -1){
+                Vertice *nuevo = crearVertice((float)(ventanaX/2 - x)/ventanaX*-2,(float)(ventanaY/2 - y)/ventanaY*2);
+                temp->next=nuevo;
+                agregados++;
+            }
         }
-        else if(estaDentroP(xMouse,yMouse,pos[4],pos[5],.03)){
-            puntoSeleccionado = 2;
-        }else puntoSeleccionado = -1;
     }else{
         mouseDown = false;
         puntoSeleccionado = -1;
@@ -165,10 +228,13 @@ void mouse(int button, int state, int x, int y){
 }
 
 void mouseMotion(int x, int y){
-    //printf("ASa\n");
-    if(mouseDown && puntoSeleccionado >= 0){
-        pos[2*puntoSeleccionado] = (float)(ventanaX/2 - x)/ventanaX*-2;
-        pos[(2*puntoSeleccionado)+1] = (float)(ventanaY/2 - y)/ventanaY*2;
+    Vertice *temp=headV;
+    if(mouseDown && puntoSeleccionado >= 0 && temp!=NULL){
+        for(int i = 0; i < puntoSeleccionado; i++)
+            if(temp->next != NULL)
+                temp=temp->next;
+        temp->x = (float)(ventanaX/2 - x)/ventanaX*-2;
+        temp->y = (float)(ventanaY/2 - y)/ventanaY*2;
         glutPostRedisplay();
     }
 }
@@ -177,26 +243,63 @@ void mouseMotion(int x, int y){
 void reshape(int w, int h){
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
+    ventanaX = w;
+    ventanaY = h;
     glViewport(0,0,w,h);
 }
 
+void vaciarListas(){
+     Triangulo *temp=headT;
+     Triangulo *del=headT;
+     if(temp){
+          if(!temp->next){
+                 free(del);
+          }
+          else{
+              temp=temp->next;
+              for(;temp;temp=temp->next){
+                 free(del);
+                 del=temp;
+              }
+              free(del);
+          }
+     }
+     headT=NULL;
+
+     Vertice *temp2= headV;
+     Vertice *del2 = headV;
+     if(temp2){
+          if(!temp2->next){
+                 free(del2);
+          }
+          else{
+              temp2=temp2->next;
+              for(;temp2;temp2=temp2->next){
+                 free(del2);
+                 del2=temp2;
+              }
+              free(del2);
+          }
+     }
+     headV=NULL;
+
+}
 
 void key(unsigned char key, int x, int y){
-    printf("%c  dibujarCirculo = %i\n",key,dibujarCirculo);
     if(key == 'c') dibujarCirculo = (dibujarCirculo+1)%2;
     if(key == 'C') dibujarCirculo = (dibujarCirculo+1)%2;
     if(key == 't') dibujarTriangulo = (dibujarTriangulo+1)%2;
     if(key == 'T') dibujarTriangulo = (dibujarTriangulo+1)%2;
     if(key == 'p') dibujarVertices = (dibujarVertices+1)%2;
     if(key == 'P') dibujarVertices = (dibujarVertices+1)%2;
-    if(key == 'i') agregados = 0;
-    if(key == 'I') agregados = 0;
+    if(key == 'i') {agregados = 0; vaciarListas();}
+    if(key == 'I') {agregados = 0; vaciarListas();}
     glutPostRedisplay();
 }
 
 main(){
     glutInitDisplayMode(GLUT_RGB);
-    glutInitWindowSize(500,500);
+    glutInitWindowSize(ventanaX,ventanaY);
     glutInitWindowPosition(0,0);
 
     glutCreateWindow("Parte1");

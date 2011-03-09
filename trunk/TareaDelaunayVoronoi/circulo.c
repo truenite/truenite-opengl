@@ -49,6 +49,7 @@ int estaDentroC(GLfloat x, GLfloat y, Circulo *circulo){
         return 0;
     return 1;
 }
+
 int estaDentroP(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2, GLfloat radio){
     if(calcularRadio(x1,y1,x2,y2)>radio)
         return 0;
