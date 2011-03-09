@@ -7,7 +7,7 @@
 
 #include "triangulo.h"
 
-Triangulo *crearTriangulo(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2, GLfloat x3, GLfloat y3){
+Triangulo *crearTriangulo(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2, GLfloat x3, GLfloat y3, GLfloat circunX, GLfloat circunY){
      Triangulo *nuevo=(Triangulo *)malloc(sizeof(Triangulo));
      if(!nuevo){
           printf("Error al alojar memoria");
@@ -20,6 +20,42 @@ Triangulo *crearTriangulo(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2, GLfloa
      nuevo->y2=y2;
      nuevo->x3=x3;
      nuevo->y3=y3;
+     nuevo->circunX=circunX;
+     nuevo->circunY=circunY;
      nuevo->next=NULL;
      return nuevo;
+}
+
+GLint esVertice(GLfloat x, GLfloat y, Triangulo *triangulo){
+    if((x == triangulo->x1 && y == triangulo->y1) || (x == triangulo->x2 && y == triangulo->y2) || (x == triangulo->x3 && y == triangulo->y3))
+        return 1;
+    return 0;
+}
+
+GLint esIqualQue(Triangulo *t1 , Triangulo *t2){
+    if(esVertice(t2->x1,t2->y1,t1) == 1 && esVertice(t2->x2,t2->y2,t1) && esVertice(t2->x3,t2->y3,t1))
+        return 1;
+    return 0;
+}
+
+GLint esVecino(Triangulo *t1 , Triangulo *t2){
+    GLint cont = 0;
+    cont += esVertice(t2->x1,t2->y1,t1);
+    cont += esVertice(t2->x2,t2->y2,t1);
+    cont += esVertice(t2->x3,t2->y3,t1);
+    if(cont == 2)
+        return 1;
+    return 0;
+}
+
+void drawTriangulo(GLfloat x1,GLfloat y1,GLfloat x2,GLfloat y2,GLfloat x3,GLfloat y3){
+    glColor3f(0.0f, 0.0f, 0.0f);
+    glBegin(GL_LINES);
+        glVertex2f(x1,y1);
+        glVertex2f(x2,y2);
+        glVertex2f(x2,y2);
+        glVertex2f(x3,y3);
+        glVertex2f(x3,y3);
+        glVertex2f(x1,y1);
+    glEnd();
 }
