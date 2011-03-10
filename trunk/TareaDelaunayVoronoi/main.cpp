@@ -194,8 +194,29 @@ void initValores(){
     Voronoi = NULL;
 }
 
+void vaciarListaTriangulos(){
+    Triangulo *temp=headT;
+    Triangulo *del=headT;
+    if(temp){
+      if(!temp->next){
+             free(del);
+      }
+      else{
+          temp=temp->next;
+          for(;temp;temp=temp->next){
+             free(del);
+             del=temp;
+          }
+          free(del);
+      }
+    }
+    headT=NULL;
+
+}
+
 void mouse(int button, int state, int x, int y){
     if(button == GLUT_LEFT_BUTTON && state==GLUT_DOWN){
+        vaciarListaTriangulos();
         mouseDown = true;
         GLint i = 0;
         GLfloat xMouse = (float)(ventanaX/2 - x)/ventanaX*-2;
@@ -230,6 +251,7 @@ void mouse(int button, int state, int x, int y){
 void mouseMotion(int x, int y){
     Vertice *temp=headV;
     if(mouseDown && puntoSeleccionado >= 0 && temp!=NULL){
+        vaciarListaTriangulos();
         for(int i = 0; i < puntoSeleccionado; i++)
             if(temp->next != NULL)
                 temp=temp->next;
@@ -249,22 +271,7 @@ void reshape(int w, int h){
 }
 
 void vaciarListas(){
-     Triangulo *temp=headT;
-     Triangulo *del=headT;
-     if(temp){
-          if(!temp->next){
-                 free(del);
-          }
-          else{
-              temp=temp->next;
-              for(;temp;temp=temp->next){
-                 free(del);
-                 del=temp;
-              }
-              free(del);
-          }
-     }
-     headT=NULL;
+     vaciarListaTriangulos();
 
      Vertice *temp2= headV;
      Vertice *del2 = headV;
