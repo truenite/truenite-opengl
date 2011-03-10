@@ -26,7 +26,6 @@ GLint dibujarVerticesVoronoi = 1;
 GLint dibujarVoronoi = 1;
 Triangulo *headT;
 Vertice *headV;
-Vertice *Voronoi;
 GLfloat radioVertice = .03;
 
 Circulo *calcularCircuncentro(Vertice *v1, Vertice *v2, Vertice *v3){
@@ -48,7 +47,7 @@ Circulo *calcularCircuncentro(Vertice *v1, Vertice *v2, Vertice *v3){
 
     GLfloat circunX = ((-BCx * BCmPrime)+BCy+(ABx*ABmPrime)-ABy)/(ABmPrime-BCmPrime);
     GLfloat circunY = (circunX*ABmPrime)-(ABx*ABmPrime)+(ABy);
-    glColor3f(1.0f, 1.0f, 0.0f);
+    glColor3f(.9f, .9f, .9f);
     GLfloat radio = calcularRadio(v1->x,v1->y,circunX,circunY);
 
     Vertice *temp = headV;
@@ -102,12 +101,6 @@ void drawTriangulos(){
         drawTriangulo(temp->x1,temp->y1,temp->x2,temp->y2,temp->x3,temp->y3);
     }
 }
-
-void drawVoronoi(){
-
-
-}
-
 void drawVertices(){
     if(dibujarVertices == 1){
         GLint i = 0;
@@ -138,6 +131,85 @@ void drawVertices(){
         glColor3f(0.0f, 0.0f, 0.0f);
     }
 }
+void calcularTriangulos(){
+    Vertice *temp = headV;
+    Vertice *temp2 = temp->next;
+    Vertice *temp3 = temp2->next;
+    while(temp->next != NULL){
+        temp2 = temp->next;
+        while(temp2->next != NULL){
+            temp3 = temp2->next;
+            while(temp3->next != NULL){
+                calcularCircuncentro(temp,temp2,temp3);
+                Circulo *circulo = calcularCircuncentro(temp,temp2,temp3);
+                if(circulo != NULL){
+                    if(dibujarCirculo == 1)
+                        glCircle3f(circulo->x,circulo->y,circulo->radio);
+                }
+                temp3=temp3->next;
+            }
+            calcularCircuncentro(temp,temp2,temp3);
+            Circulo *circulo = calcularCircuncentro(temp,temp2,temp3);
+            if(circulo != NULL){
+                if(dibujarCirculo == 1)
+                    glCircle3f(circulo->x,circulo->y,circulo->radio);
+            }
+            temp2 = temp2->next;
+        }
+        calcularCircuncentro(temp,temp2,temp3);
+        Circulo *circulo = calcularCircuncentro(temp,temp2,temp3);
+        if(circulo != NULL){
+            if(dibujarCirculo == 1)
+                glCircle3f(circulo->x,circulo->y,circulo->radio);
+        }
+        temp=temp->next;
+    }
+}
+
+void drawVoronoiVertex(){
+    if(dibujarVerticesVoronoi == 1 && headT != NULL){
+        glColor3f(1.0f, 0.0f, 0.0f);
+        Triangulo *temp = headT;
+        for(;temp->next;temp=temp->next){
+            glPushMatrix();
+                glTranslatef(temp->circunX,temp->circunY,0);
+                glutSolidSphere(radioVertice,20,20);
+            glPopMatrix();
+        }
+        glPushMatrix();
+            glTranslatef(temp->circunX,temp->circunY,0);
+            glutSolidSphere(radioVertice,20,20);
+        glPopMatrix();
+        glColor3f(0.0f, 0.0f, 0.0f);
+    }
+}
+
+void drawVoronoi(){
+    if(dibujarVoronoi==1 && headT != NULL){
+        Triangulo *temp = headT;
+        Triangulo *temp2;
+        for(;temp->next;temp=temp->next){
+            temp2 = temp;
+            for(;temp2->next;temp2=temp2->next){
+                if(esVecino(temp,temp2) == 1){
+                    glColor3f(1.0f, 0.0f, 0.0f);
+                    glBegin(GL_LINES);
+                        glVertex2f(temp->circunX,temp->circunY);
+                        glVertex2f(temp2->circunX,temp2->circunY);
+                    glEnd();
+                }
+            }
+            if(esVecino(temp,temp2) == 1){
+                glColor3f(1.0f, 0.0f, 0.0f);
+                glBegin(GL_LINE);
+                    glVertex2f(temp->circunX,temp->circunY);
+                    glVertex2f(temp2->circunX,temp2->circunY);
+                glEnd();
+            }
+        }
+        glColor3f(0.0f, 0.0f, 0.0f);
+    }
+}
 
 void display(){
     glColor3f(0,0,0);
@@ -146,39 +218,10 @@ void display(){
     drawVertices();
 
     if(agregados > 2){
-        Vertice *temp = headV;
-        Vertice *temp2 = temp->next;
-        Vertice *temp3 = temp2->next;
-        while(temp->next != NULL){
-            temp2 = temp->next;
-            while(temp2->next != NULL){
-                temp3 = temp2->next;
-                while(temp3->next != NULL){
-                    calcularCircuncentro(temp,temp2,temp3);
-                    Circulo *circulo = calcularCircuncentro(temp,temp2,temp3);
-                    if(circulo != NULL){
-                        if(dibujarCirculo == 1)
-                            glCircle3f(circulo->x,circulo->y,circulo->radio);
-                    }
-                    temp3=temp3->next;
-                }
-                calcularCircuncentro(temp,temp2,temp3);
-                Circulo *circulo = calcularCircuncentro(temp,temp2,temp3);
-                if(circulo != NULL){
-                    if(dibujarCirculo == 1)
-                        glCircle3f(circulo->x,circulo->y,circulo->radio);
-                }
-                temp2 = temp2->next;
-            }
-            calcularCircuncentro(temp,temp2,temp3);
-            Circulo *circulo = calcularCircuncentro(temp,temp2,temp3);
-            if(circulo != NULL){
-                if(dibujarCirculo == 1)
-                    glCircle3f(circulo->x,circulo->y,circulo->radio);
-            }
-            temp=temp->next;
-        }
+        calcularTriangulos();
         drawTriangulos();
+        drawVoronoiVertex();
+        drawVoronoi();
     }
     glFlush();
 }
@@ -191,7 +234,6 @@ void initValores(){
     gluOrtho2D(-250,250,-250,250);
     headV = NULL;
     headT = NULL;
-    Voronoi = NULL;
 }
 
 void vaciarListaTriangulos(){
@@ -299,6 +341,10 @@ void key(unsigned char key, int x, int y){
     if(key == 'T') dibujarTriangulo = (dibujarTriangulo+1)%2;
     if(key == 'p') dibujarVertices = (dibujarVertices+1)%2;
     if(key == 'P') dibujarVertices = (dibujarVertices+1)%2;
+    if(key == 'v') dibujarVoronoi = (dibujarVoronoi+1)%2;
+    if(key == 'V') dibujarVoronoi = (dibujarVoronoi+1)%2;
+    if(key == 'o') dibujarVerticesVoronoi = (dibujarVerticesVoronoi+1)%2;
+    if(key == 'O') dibujarVerticesVoronoi = (dibujarVerticesVoronoi+1)%2;
     if(key == 'i') {agregados = 0; vaciarListas();}
     if(key == 'I') {agregados = 0; vaciarListas();}
     glutPostRedisplay();
