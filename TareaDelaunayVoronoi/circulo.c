@@ -28,7 +28,7 @@ void glCircle3f(GLfloat x, GLfloat y, GLfloat radius) {
     glTranslatef(x,y,0);
     glLoadIdentity();
     glDisable(GL_TEXTURE_2D);
-    glLineWidth(10.0f);
+    glLineWidth(5.0f);
     glBegin(GL_LINE_LOOP);
     int i;
     for(i = 0; i < 100; i++) {

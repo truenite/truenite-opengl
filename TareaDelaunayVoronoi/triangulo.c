@@ -32,20 +32,31 @@ GLint esVertice(GLfloat x, GLfloat y, Triangulo *triangulo){
     return 0;
 }
 
-GLint esIqualQue(Triangulo *t1 , Triangulo *t2){
-    if(esVertice(t2->x1,t2->y1,t1) == 1 && esVertice(t2->x2,t2->y2,t1) && esVertice(t2->x3,t2->y3,t1))
+GLint esIgualQue(Triangulo *t1 , Triangulo *t2){
+    if(esVertice(t2->x1,t2->y1,t1) == 1 && esVertice(t2->x2,t2->y2,t1) == 1 && esVertice(t2->x3,t2->y3,t1) == 1)
         return 1;
     return 0;
 }
 
 GLint esVecino(Triangulo *t1 , Triangulo *t2){
     GLint cont = 0;
-    cont += esVertice(t2->x1,t2->y1,t1);
-    cont += esVertice(t2->x2,t2->y2,t1);
-    cont += esVertice(t2->x3,t2->y3,t1);
-    if(cont == 2)
+    cont += esVertice(t1->x1,t1->y1,t2);
+    if(esVertice(t1->x2,t1->y2,t2) == 1)
+        cont++;
+    if(esVertice(t1->x3,t1->y3,t2))
+        cont++;
+    if(cont != 2)
+        return 0;
+    return 1;
+}
+GLint esVecinoConArista(Triangulo *t1 , Triangulo *t2){
+    if(esVertice(t1->x1,t1->y1,t2) == 1 && esVertice(t1->x2,t1->y2,t2) == 1)
+        return 0;
+    if(esVertice(t1->x2,t1->y2,t2) == 1 && esVertice(t1->x3,t1->y3,t2) == 1)
         return 1;
-    return 0;
+    if(esVertice(t1->x1,t1->y1,t2) == 1 && esVertice(t1->x3,t1->y3,t2) == 1)
+        return 2;
+    return -1;
 }
 
 void drawTriangulo(GLfloat x1,GLfloat y1,GLfloat x2,GLfloat y2,GLfloat x3,GLfloat y3){
