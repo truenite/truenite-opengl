@@ -26,7 +26,7 @@ GLint dibujarVerticesVoronoi = 1;
 GLint dibujarVoronoi = 1;
 Triangulo *headT;
 Vertice *headV;
-GLfloat radioVertice = .03;
+GLfloat radioVertice = .02;
 
 Circulo *calcularCircuncentro(Vertice *v1, Vertice *v2, Vertice *v3){
 
@@ -67,9 +67,14 @@ Circulo *calcularCircuncentro(Vertice *v1, Vertice *v2, Vertice *v3){
         headT = triangulo;
     }else{
         Triangulo *temp2 = headT;
+        GLint existe = 0;
         for(;temp2->next;temp2=temp2->next)
-            ;
-        temp2->next = triangulo;
+            if(esIgualQue(triangulo,temp2))
+                existe = 1;
+        if(esIgualQue(triangulo,temp2))
+            existe = 1;
+        if(existe == 0)
+            temp2->next = triangulo;
     }
     Circulo *circ = crearCirculo(circunX,circunY,radio);
     /*if(dibujarCirculo == 1){
@@ -184,14 +189,102 @@ void drawVoronoiVertex(){
     }
 }
 
+void lineasInfinito(GLint vecinos[], Triangulo *temp){
+    for(int i = 0; i <3; i++){
+        if(vecinos[i]==0){
+            GLfloat x = 0;//(temp->x1+temp->x2)/2;
+            GLfloat y = 0;//(temp->y1+temp->y2)/2;
+            GLfloat x3erPunto = 0;
+            GLfloat y3erPunto = 0;
+            GLfloat limX = 0;
+            GLfloat limY = 0;
+            switch(i){
+                case 0: // de 1 a 2
+                    x = (temp->x1+temp->x2)/2;
+                    y = (temp->y1+temp->y2)/2;
+                    if(temp->circunX > temp->x3)
+                        limX = 1;
+                    else
+                        limX = -1;
+                    if(temp->circunY > temp->y3)
+                        limY = 1;
+                    else
+                        if(temp->circunY < temp->y3)
+                            limY = -1;
+                        else limY = temp->circunY;
+                    break;
+                case 1: // de 2 a 3
+                    x = (temp->x2+temp->x3)/2;
+                    y = (temp->y2+temp->y3)/2;
+                    x3erPunto = temp->y1;
+                    y3erPunto = temp->y1;
+                    if(temp->circunX > temp->x1)
+                        limX = 1;
+                    else
+                        limX = -1;
+                    if(temp->circunY > temp->y1)
+                        limY = 1;
+                    else
+                        if(temp->circunY < temp->y1)
+                            limY = -1;
+                        else limY = temp->circunY;
+                    break;
+                case 2: // de 1 a 3
+                    x = (temp->x1+temp->x3)/2;
+                    y = (temp->y1+temp->y3)/2;
+                    x3erPunto = temp->y2;
+                    y3erPunto = temp->y2;
+                    if(temp->circunX > temp->x2)
+                        limX = 1;
+                    else
+                        limX = -1;
+                    if(temp->circunY > temp->y2)
+                        limY = 1;
+                    else
+                        if(temp->circunY < temp->y2)
+                            limY = -1;
+                        else limY = temp->circunY;
+                    break;
+                default:
+                    break;
+            }
+            GLfloat m = (temp->circunY-y)/(temp->circunX-x);
+            GLfloat b = y - (m*x);
+            GLfloat x1 = 0;
+            GLfloat y1 = 0;
+            GLfloat x2 = 0;
+            GLfloat y2 = 0;
+
+            y1 = (m*limX)+b;
+            x1 = (limY-b)/m;
+
+            glColor3f(1.0f, 1.0f, 0.0f);
+            //printf("x %f  y %f   cirx %f  ciry %f\n",x,y,temp->circunX,temp->circunY);
+            glBegin(GL_LINES);
+                glVertex2f(temp->circunX,temp->circunY);
+                glVertex2f(x1,limY);
+            glEnd();
+        }
+    }
+
+}
+
 void drawVoronoi(){
     if(dibujarVoronoi==1 && headT != NULL){
         Triangulo *temp = headT;
         Triangulo *temp2;
-        for(;temp->next;temp=temp->next){
-            temp2 = temp;
-            for(;temp2->next;temp2=temp2->next){
-                if(esVecino(temp,temp2) == 1){
+        GLint j = 0;
+        GLint numVecinos = 0;
+        GLint vecinos[] = {0,0,0};
+        for(;temp->next;temp=temp->next,j++){
+            vecinos = {0,0,0};
+            numVecinos = 0;
+            temp2 = headT;
+            GLint k = 0;
+            for(;temp2->next;temp2=temp2->next,k++){
+                if(esVecino(temp,temp2) > 0){
+                    vecinos[esVecinoConArista(temp,temp2)]=1;
+                    numVecinos++;
                     glColor3f(1.0f, 0.0f, 0.0f);
                     glBegin(GL_LINES);
                         glVertex2f(temp->circunX,temp->circunY);
@@ -199,14 +292,55 @@ void drawVoronoi(){
                     glEnd();
                 }
             }
-            if(esVecino(temp,temp2) == 1){
+            if(esVecino(temp,temp2) > 0 ){
+                vecinos[esVecinoConArista(temp,temp2)]=1;
+                numVecinos++;
                 glColor3f(1.0f, 0.0f, 0.0f);
-                glBegin(GL_LINE);
+                glBegin(GL_LINES);
+                    glVertex2f(temp->circunX,temp->circunY);
+                    glVertex2f(temp2->circunX,temp2->circunY);
+                glEnd();
+            }
+            if(numVecinos >0 && numVecinos <3){
+                lineasInfinito(vecinos,temp);
+            }
+        }
+
+
+        vecinos = {0,0,0};
+        numVecinos = 0;
+        temp2 = headT;
+        GLint k = 0;
+        for(;temp2->next;temp2=temp2->next,k++){
+            if(esVecino(temp,temp2) > 0){
+                vecinos[esVecinoConArista(temp,temp2)]=1;
+                numVecinos++;
+                glColor3f(1.0f, 0.0f, 0.0f);
+                glBegin(GL_LINES);
                     glVertex2f(temp->circunX,temp->circunY);
                     glVertex2f(temp2->circunX,temp2->circunY);
                 glEnd();
             }
         }
+        if(esVecino(temp,temp2) > 0 ){
+            vecinos[esVecinoConArista(temp,temp2)]=1;
+            numVecinos++;
+            glColor3f(1.0f, 0.0f, 0.0f);
+            glBegin(GL_LINES);
+                glVertex2f(temp->circunX,temp->circunY);
+                glVertex2f(temp2->circunX,temp2->circunY);
+            glEnd();
+        }
+        if(numVecinos >0 && numVecinos <3){
+            lineasInfinito(vecinos,temp);
+        }
+
+
+
+
+
+
+
         glColor3f(0.0f, 0.0f, 0.0f);
     }
 }
@@ -313,25 +447,24 @@ void reshape(int w, int h){
 }
 
 void vaciarListas(){
-     vaciarListaTriangulos();
-
-     Vertice *temp2= headV;
-     Vertice *del2 = headV;
-     if(temp2){
-          if(!temp2->next){
-                 free(del2);
+    vaciarListaTriangulos();
+    Vertice *temp2= headV;
+    Vertice *del2 = headV;
+    if(temp2){
+      if(!temp2->next){
+             free(del2);
+      }
+      else{
+          temp2=temp2->next;
+          for(;temp2;temp2=temp2->next){
+             free(del2);
+             del2=temp2;
           }
-          else{
-              temp2=temp2->next;
-              for(;temp2;temp2=temp2->next){
-                 free(del2);
-                 del2=temp2;
-              }
-              free(del2);
-          }
-     }
-     headV=NULL;
-
+          free(del2);
+      }
+    }
+    headV=NULL;
+    agregados = 0;
 }
 
 void key(unsigned char key, int x, int y){
