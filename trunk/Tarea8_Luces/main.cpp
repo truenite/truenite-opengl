@@ -1,9 +1,8 @@
 /***************************************************
 Materia: Gráficas Computacionales
-Examen Segundo Parcial
-Fecha: 3 de Marzo de 2011
+Tarea 8: Luces
+Fecha: 19 de Marzo de 2011
 Autor 1: 1162205 Diego Alfonso García Mendiburu
-Autor 2: 1163990 Andres Rocha Bravo
 ***************************************************/
 
 #include <windows.h>

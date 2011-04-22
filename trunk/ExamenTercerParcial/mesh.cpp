@@ -1,6 +1,7 @@
 // mesh.cpp: implementation of the mesh class.
 //
 //////////////////////////////////////////////////////////////////////
+#include <windows.h>
 
 #include "mesh.h"
 #include <iostream>
@@ -154,10 +155,10 @@ void mesh::LoadMesh(string obj_file)
 
 	if (scene) fclose(scene);
 
-	vTotal = vList.size();
-	nTotal = nList.size();
-	tTotal = tList.size();
-	fTotal = faceList.size();
+	vTotal = vList.size()/2;
+	nTotal = nList.size()/2;
+	tTotal = tList.size()/2;
+	fTotal = faceList.size()/2;
 	printf("vetex: %d, normal: %d, texture: %d, triangles: %d\n",vTotal, nTotal, tTotal, fTotal);
 }
 
