@@ -1,10 +1,16 @@
+/***************************************************
+Materia: Gráficas Computacionales
+Tarea: 10 Particulas
+Fecha: 11 de Abril del 2011
+Autor 1: 1162205 Diego Alfonso García Mendiburu
+***************************************************/
 #include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
 #include <GL/glut.h>
-
+#include <math.h>
 #include "struct.h"
 
 Particle *createParticle(GLfloat x, GLfloat y, GLfloat z){
@@ -21,19 +27,31 @@ Particle *createParticle(GLfloat x, GLfloat y, GLfloat z){
     nuevo->vel[0] = 0;
     nuevo->vel[1] = 0;
     nuevo->vel[2] = 0; // velocidad
+    nuevo->oldPos[0] = x;
+    nuevo->oldPos[1] = y;
+    nuevo->oldPos[2] = z; // velocidad
     nuevo->forces[0] = 0;
     nuevo->forces[1] = 0;
     nuevo->forces[2] = 0;
     nuevo->acl[0] = 0;
     nuevo->acl[1] = 0;
     nuevo->acl[2] = 0;
+    nuevo->damping = .0005;
     nuevo->fixed = 0;
     nuevo->selected = 0;
     nuevo->next = NULL;
     nuevo->child = NULL;
+    nuevo->father = NULL;
     return nuevo;
 }
-Spring *createSpringForce(Particle *p1, Particle *p2, GLfloat Ks, GLfloat Kd, GLfloat r){
+GLfloat Modulo(GLfloat x, GLfloat y, GLfloat z){
+     GLfloat len;
+
+     len = x*x + y*y + z*z;
+     return (sqrt(len));
+}
+Spring *createSpring(Particle *p1, Particle *p2, GLfloat k){
+    //printf("x1:%f  y1:%f   z1:%f    x2:%f   y2:%f    z2:%f\n",p1->pos[0],p1->pos[1],p1->pos[2],p2->pos[0],p2->pos[1],p2->pos[2]);
     Spring *nuevo=(Spring *)malloc(sizeof(Spring));
     if(!nuevo){
         printf("Error al alojar memoria");
@@ -42,9 +60,14 @@ Spring *createSpringForce(Particle *p1, Particle *p2, GLfloat Ks, GLfloat Kd, GL
     memset(nuevo,0,sizeof(nuevo));
     nuevo->p1 = p1;
     nuevo->p2 = p2;
-    nuevo->Ks = Ks;
-    nuevo->Kd = Kd;
-    nuevo->r = r;
+    nuevo->k = k;
+    nuevo->tension = 0;
+    GLfloat distancia [3];
+    GLint i;
+    for(i = 0; i < 3; i++){
+        distancia[i] = p1->pos[i]-p2->pos[i];
+    }
+    nuevo->r = Modulo(distancia[0],distancia[1],distancia[2]);
     return nuevo;
 }
 ParticleSystem *createParticleSystem(){
@@ -62,15 +85,7 @@ ParticleSystem *createParticleSystem(){
     nuevo->contacts = contacts;
     return nuevo;
 }
-
-GLfloat Modulo(GLfloat x, GLfloat y, GLfloat z){
-     GLfloat len;
-
-     len = x*x + y*y + z*z;
-     return (sqrt(len));
-}
-
-GLvoid Normaliza(GLfloat *x, GLfloat *y, GLfloat *z){
+GLvoid normaliza(GLfloat *x, GLfloat *y, GLfloat *z){
      GLfloat len;
 
      len = Modulo(*x, *y, *z);
@@ -79,8 +94,7 @@ GLvoid Normaliza(GLfloat *x, GLfloat *y, GLfloat *z){
      (*y) *= len;
      (*z) *= len;
 }
-
-GLvoid ProductoVectorial(GLfloat V1[], GLfloat V2[], GLfloat V3[],
+GLvoid productoVectorial(GLfloat V1[], GLfloat V2[], GLfloat V3[],
                          GLfloat *NormalX,
                          GLfloat *NormalY,
                          GLfloat *NormalZ){
@@ -96,13 +110,160 @@ GLvoid ProductoVectorial(GLfloat V1[], GLfloat V2[], GLfloat V3[],
      *NormalY = Pz*Qx - Px*Qz;
      *NormalZ = Px*Qy - Py*Qx;
 }
+int mismaParticula(Particle *p1, Particle *p2){
+    if(p1 == p2)
+        return 1;
+    return 0;
+}
+void sumarFuerza(Particle *p, GLfloat cx, GLfloat cy, GLfloat cz){
+    if(p->fixed == 0){
+        p->acl[0]=p->acl[0]+cx;
+        p->acl[1]=p->acl[1]+cy;
+        p->acl[2]=p->acl[2]+cz;
+    }
+}
+void timeStep(Particle *p, GLfloat timeStepSize, GLfloat radioEsfera){
+    if(p->fixed == 0){
+        GLfloat nuevo;
+        //p->selected=1;
+        GLfloat temp[3] = {p->pos[0],p->pos[1],p->pos[2]};
+        Particle *te = p;
+        //printf("x1: %f, y1:%f,  z1: %f  cambio: %f\n",te->pos[0],te->pos[1],te->pos[2],nuevo);
+        GLint i = 0;
+        for(i = 0; i < 3; i++){
+            //nuevo =
+            //nuevo = ((p->pos[i]-p->oldPos[i])*(1.0-p->damping));
+            p->pos[i] = p->pos[i] + ((p->pos[i]-p->oldPos[i])*(1.0-p->damping))+p->acl[i]*timeStepSize;;
+            p->oldPos[i] = temp[i];
+            p->acl[i] = 0;
+            //printf("cambio%i: %f  p->pos[i]:%f  p->oldPos[i]:%f     1.0-p->damping:%f   \n",i,nuevo,p->pos[i],p->oldPos[i],1.0-p->damping);
+        }
+        //printf("x2: %f, y2:%f,  z2: %f  cambio: %f\n",te->pos[0],te->pos[1],te->pos[2],nuevo);
+        // Colisiones esfera
+        GLfloat longitud = Modulo(p->pos[0],p->pos[1],p->pos[2]);
+        if(longitud*longitud<radioEsfera*1.08f*radioEsfera*1.08f){
+            normaliza(&p->pos[0],&p->pos[1],&p->pos[2]);
+            p->pos[0]=p->pos[0]*radioEsfera*1.08f;
+            p->pos[1]=p->pos[1]*radioEsfera*1.08f;
+            p->pos[2]=p->pos[2]*radioEsfera*1.08f;
+        }
 
+        // Piso
+
+        if(p->pos[1]<-9.0)
+            p->pos[1]= -9.0;
+    }
+}
+void mover(Particle *p, GLfloat x, GLfloat y, GLfloat z){
+    if(p->fixed==0){
+    //printf("1: Moviendo x: %f  y: %f  z: %f  \n   ant: x: %f  y: %f  z: %f \n",x,y,z,p->pos[0],p->pos[1],p->pos[2]);
+        p->pos[0]=p->pos[0]+x;
+        p->pos[1]=p->pos[1]+y;
+        p->pos[2]=p->pos[2]+z;
+    }
+    //printf("2: Ant: x: %f  y: %f  z: %f \n",p->pos[0],p->pos[1],p->pos[2]);
+}
+void sumarNormal(Particle *p, GLfloat cx, GLfloat cy, GLfloat cz){
+    p->normal[0]= p->normal[0]+cx;
+    p->normal[1]= p->normal[1]+cy;
+    p->normal[2]= p->normal[2]+cz;
+}
+void contrae(Spring *s){
+    Spring *temp = s;
+    GLfloat distancia[3];
+    GLint i;
+    for(i = 0; i < 3; i++){
+        distancia [i] = s->p1->pos[i]-s->p2->pos[i];
+    }
+    GLfloat magnitudDist = Modulo(distancia[0],distancia[1],distancia[2]);
+
+    float extension=magnitudDist-s->r;
+
+    s->tension =  s->k*extension/s->r;
+    //printf("s->tension: %f extension %f , s->r: %f  extension/s-> %f:   magnitudDist: %f\n",s->tension,extension,s->r,extension/s->r,magnitudDist);
+    // PARA s->p1
+
+    GLfloat tensionDirection[3];
+    for(i = 0; i < 3; i++){
+        tensionDirection [i] = s->p2->pos[i] - s->p1->pos[i];
+    }
+    normaliza(&tensionDirection[0],&tensionDirection[1],&tensionDirection[2]);
+    //printf("%f   %f   %f\n",tensionDirection[0],tensionDirection[1],tensionDirection[2]);
+    sumarFuerza(s->p1,s->tension*tensionDirection[0],s->tension*tensionDirection[1],s->tension*tensionDirection[2]);
+
+    // PARA s->p2
+
+    for(i = 0; i < 3; i++){
+        tensionDirection [i] = s->p1->pos[i]-s->p2->pos[i];
+    }
+    normaliza(&tensionDirection[0],&tensionDirection[1],&tensionDirection[2]);
+    sumarFuerza(s->p2,s->tension*tensionDirection[0],s->tension*tensionDirection[1],s->tension*tensionDirection[2]);
+
+}
+void sumarFuerzaMalla(Particle *malla, GLfloat cx, GLfloat cy, GLfloat cz){
+    Particle *temp = malla;
+    Particle *tempCol = malla->next;
+    int cont = 0;
+    for(;tempCol->next;tempCol=tempCol->next){
+        temp = tempCol;
+        for(;temp->child;temp=temp->child){
+            sumarFuerza(temp,cx,cy,cz);
+        }
+        sumarFuerza(temp,cx,cy,cz);;
+    }
+    temp = tempCol;
+    for(;temp->child;temp=temp->child){
+        sumarFuerza(temp,cx,cy,cz);
+    }
+    sumarFuerza(temp,cx,cy,cz);
+}
+void drawSprings(Spring *s){
+    Spring *temp = s->next;
+    for(;temp->next;temp=temp->next){
+        glColor3f(1.0f, 0.0f, 0.0f);
+        glBegin(GL_LINES);
+            glVertex3f(temp->p1->pos[0],temp->p1->pos[1],temp->p1->pos[2]);
+            glVertex3f(temp->p2->pos[0],temp->p2->pos[1],temp->p2->pos[2]);
+        glEnd();
+        //printf("x1:%f  y1:%f   z1:%f    x2:%f   y2:%f    z2:%f\n",temp->p1->pos[0],temp->p1->pos[1],temp->p1->pos[2],temp->p2->pos[0],temp->p2->pos[1],temp->p2->pos[2]);
+    }
+    glColor3f(1.0f, 0.0f, 0.0f);
+    glBegin(GL_LINES);
+        glVertex3f(temp->p1->pos[0],temp->p1->pos[1],temp->p1->pos[2]);
+        glVertex3f(temp->p2->pos[0],temp->p2->pos[1],temp->p2->pos[2]);
+    glEnd();
+}
+void countSprings(Spring *s){
+    Spring *temp = s;
+    int i=0;
+    for(;temp->next;temp=temp->next,i++)
+        ;//printf("%i x1:%f  y1:%f   z1:%f    x2:%f   y2:%f    z2:%f\n",i,temp->p1->pos[0],temp->p1->pos[1],temp->p1->pos[2],temp->p2->pos[0],temp->p2->pos[1],temp->p2->pos[2]);
+    //printf("hay %i springs\n",i+1);
+}
 void dibujarMalla(Particle *malla, GLfloat divs){
     Particle *temp = malla;
     Particle *tempCol = malla->next;
+    int i = 0;
+    for(;tempCol->next;tempCol=tempCol->next){
+        temp = tempCol;
+        for(;temp->child;temp=temp->child){
+            for(i = 0;i<3;i++)
+                temp->normal[i]=0;
+        }
+        for(i = 0;i<3;i++)
+            temp->normal[i]=0;
+    }
+    temp = tempCol;
+    for(;temp->child;temp=temp->child){
+        for(i = 0;i<3;i++)
+            temp->normal[i]=0;
+    }
+    for(i = 0;i<3;i++)
+        temp->normal[i]=0;
+
     GLfloat posActualX, posActualY;
  	posActualX = posActualY = 0.0;
-
+ 	tempCol = malla->next;
     for(;tempCol->next;tempCol=tempCol->next){
         temp = tempCol;
         for(;temp->child;temp=temp->child){
@@ -120,48 +281,84 @@ void dibujarMalla(Particle *malla, GLfloat divs){
             V3[0] = temp->child->pos[0];
             V3[1] = temp->child->pos[1];
             V3[2] = temp->child->pos[2];
-            V4[0] = temp->next->child->pos[0];
-            V4[1] = temp->next->child->pos[1];
-            V4[2] = temp->next->child->pos[2];
+            V4[0] = temp->child->next->pos[0];
+            V4[1] = temp->child->next->pos[1];
+            V4[2] = temp->child->next->pos[2];
 
-            ProductoVectorial(V1, V3, V2, &NormalX, &NormalY, &NormalZ);
-            Normaliza(&NormalX, &NormalY, &NormalZ);
+            productoVectorial(V1, V3, V2, &NormalX, &NormalY, &NormalZ);
+            normaliza(&NormalX, &NormalY, &NormalZ);
+            temp->normal[0]+=NormalX;
+            temp->normal[1]+=NormalY;
+            temp->normal[2]+=NormalZ;
+            temp->next->normal[0]+=NormalX;
+            temp->next->normal[1]+=NormalY;
+            temp->next->normal[2]+=NormalZ;
+            temp->child->normal[0]+=NormalX;
+            temp->child->normal[1]+=NormalY;
+            temp->child->normal[2]+=NormalZ;
 
+
+            productoVectorial(V2, V3, V4, &NormalX, &NormalY, &NormalZ);
+            normaliza(&NormalX, &NormalY, &NormalZ);
+            temp->next->normal[0]+=NormalX;
+            temp->next->normal[1]+=NormalY;
+            temp->next->normal[2]+=NormalZ;
+            temp->child->normal[0]+=NormalX;
+            temp->child->normal[1]+=NormalY;
+            temp->child->normal[2]+=NormalZ;
+            temp->child->next->normal[0]+=NormalX;
+            temp->child->next->normal[1]+=NormalY;
+            temp->child->next->normal[2]+=NormalZ;
+        }
+        posActualY = 0;
+ 	    posActualX += 1/divs;
+    }
+    tempCol = malla->next;
+    for(;tempCol->next;tempCol=tempCol->next){
+        temp = tempCol;
+        for(;temp->child;temp=temp->child){
+            GLfloat NormalX, NormalY, NormalZ;
             glBegin(GL_TRIANGLES);
-                glNormal3f(NormalX,NormalY,NormalZ);
+                normaliza(&temp->normal[0],&temp->normal[1],&temp->normal[2]);
+                glNormal3fv(temp->normal);
                 glTexCoord2f(posActualX, posActualY);
-                glVertex3f(V1[0],V1[1],V1[2]);
+                glVertex3fv(temp->pos);
 
+                normaliza(&temp->next->normal[0],&temp->next->normal[1],&temp->next->normal[2]);
+                glNormal3fv(temp->next->normal);
                 posActualX += 1/divs;
                 glTexCoord2f(posActualX, posActualY);
-                glVertex3f(V2[0],V2[1],V2[2]);
+                glVertex3fv(temp->next->pos);
 
+                normaliza(&temp->child->normal[0],&temp->child->normal[1],&temp->child->normal[2]);
+                glNormal3fv(temp->child->normal);
                 posActualX -= 1/divs;
                 posActualY += 1/divs;
                 glTexCoord2f(posActualX, posActualY);
-                glVertex3f(V3[0],V3[1],V3[2]);
+                glVertex3fv(temp->child->pos);
                 //glVertex3f(temp->next->child->x,temp->next->child->y,temp->next->child->z);
             glEnd();
 
-            ProductoVectorial(V2, V3, V4, &NormalX, &NormalY, &NormalZ);
-            Normaliza(&NormalX, &NormalY, &NormalZ);
-
             glBegin(GL_TRIANGLES);
                 //glVertex3f(temp->x,temp->y,temp->z);
-                glNormal3f(NormalX,NormalY,NormalZ);
-
+                normaliza(&temp->next->normal[0],&temp->next->normal[1],&temp->next->normal[2]);
+                glNormal3fv(temp->next->normal);
                 posActualY -= 1/divs;
                 posActualX += 1/divs;
                 glTexCoord2f(posActualX, posActualY);
-                glVertex3f(V2[0],V2[1],V2[2]);
+                glVertex3fv(temp->next->pos);
 
+                normaliza(&temp->child->next->normal[0],&temp->child->next->normal[1],&temp->child->next->normal[2]);
+                glNormal3fv(temp->child->next->normal);
                 posActualY += 1/divs;
                 glTexCoord2f(posActualX, posActualY);
-                glVertex3f(V4[0],V4[1],V4[2]);
+                glVertex3fv(temp->child->next->pos);
 
+                normaliza(&temp->child->normal[0],&temp->child->normal[1],&temp->child->normal[2]);
+                glNormal3fv(temp->child->normal);
                 posActualX -= 1/divs;
                 glTexCoord2f(posActualX, posActualY);
-                glVertex3f(V3[0],V3[1],V3[2]);
+                glVertex3fv(temp->child->pos);
                 //posActualY -= 1/(GLfloat)divs;
             glEnd();
 
@@ -170,8 +367,6 @@ void dibujarMalla(Particle *malla, GLfloat divs){
  	    posActualX += 1/divs;
     }
 }
-
-
 void dibujarParticulas(Particle *malla){
     Particle *temp = malla;
     Particle *tempCol = malla->next;
@@ -224,4 +419,3 @@ void dibujarParticulas(Particle *malla){
     glPopMatrix();
     glColor3f(0.0f, 0.0f, 0.0f);
 }
-
