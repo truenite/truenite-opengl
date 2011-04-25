@@ -11,23 +11,26 @@ Autor 1: 1162205 Diego Alfonso García Mendiburu
 #include <math.h>
 #include "controladorMalla.c"
 
-
+GLfloat gravedad[3] = {0.0f,-0.001f, 0.0f};
+GLfloat springConstant=0.05f;
+static GLfloat timeStepSize = .5*.5*1;
 GLint ventanaX = 500;
 GLint ventanaY = 500;
 static GLint tamanoVista = 100;
 static GLint minDiv = 10;
-static GLint maxDiv = 100;
-GLfloat divs = 10;
+static GLint maxDiv = 40;
+GLfloat divs = 15;
 static GLfloat tamanoLadoMalla = 18;
 GLfloat xInit = -9.0f;
-GLfloat yInit = 0.0;
+GLfloat yInit = 9;
 GLfloat zInit = 9.0f;
 Particle *malla = (Particle *)malloc(sizeof(Particle));
+Spring *springs=(Spring*)malloc(sizeof(Spring));
 GLuint texName=0;
 unsigned char woodtexture[512][512][3];
 GLint imageSize = 512;
-float LightPos[] = { 1.0f, 0.5f, 1.0f, 0.0f};   // Light Position
-float LightAmb[] = { 0.2f, 0.2f, 0.2f, 1.0f};   // Ambient Light Values
+float LightPos[] = { 1.0f, 1.0f, 1.0f, 1.0f};   // Light Position
+float LightAmb[] = { 0.30f, 0.30f, 0.30f, 0.0f};   // Ambient Light Values
 float LightDif[] = { 1.0f, 1.0f, 1.0f, 1.0f};   // Diffuse Light Values
 float LightSpc[] = { 1.0f, 1.0f, 1.0f, 1.0f};   // Specular Light Values
 GLfloat rotationX=0.0;
@@ -35,12 +38,87 @@ GLfloat rotationY=0.0;
 GLfloat prevX=0.0;
 GLfloat prevY=0.0;
 bool mouseDown=false;
+bool prueba=false;
 GLfloat viewer[]= {0.0, 0.0, 25.0};
 GLint viewMode = 0;
 GLint shadeModel = 0;
 GLboolean mostrarTextura = 0;
 GLboolean mostrarParticulas = 0;
+bool started = false;
+float radioEsfera=4.0f;
 
+void idle(){
+    if (started) {
+        Particle *te = malla->next->child;
+        //printf("x1: %f, y1:%f,  z1: %f\n",te->pos[0],te->pos[1],te->pos[2]);
+        sumarFuerzaMalla(malla,gravedad[0]*timeStepSize,gravedad[1]*timeStepSize,gravedad[2]*timeStepSize);
+        Spring *temp = springs;
+        for(;temp->next;temp=temp->next)
+            contrae(temp);
+        contrae(temp);
+        Particle *tempCol = malla->next;
+        Particle *tempM = malla;
+        for(;tempCol->next;tempCol=tempCol->next){
+            tempM = tempCol;
+            for(;tempM->child;tempM=tempM->child){
+                timeStep(tempM,timeStepSize,radioEsfera);
+            }
+            timeStep(tempM,timeStepSize,radioEsfera);
+        }
+        tempM = tempCol;
+        for(;tempM->child;tempM=tempM->child){
+            timeStep(tempM,timeStepSize,radioEsfera);
+        }
+        timeStep(tempM,timeStepSize,radioEsfera);
+        //printf("x2: %f, y2:%f,  z2: %f\n",te->pos[0],te->pos[1],te->pos[2]);
+        glutPostRedisplay();
+        //started=!started;
+    }
+}
+
+void crearResortes(){
+    Particle *tempCol = malla->next;
+    Particle *temp;
+    Spring *tempSpring = springs;
+    for(;tempCol->next;tempCol=tempCol->next){
+        temp = tempCol;
+        for(;temp->child;temp=temp->child){
+            Spring *newSpring;
+            newSpring = createSpring(temp,temp->next,springConstant);
+            tempSpring->next = newSpring;
+            tempSpring = newSpring;
+            newSpring = createSpring(temp,temp->next->child,springConstant);
+            tempSpring->next = newSpring;
+            tempSpring = newSpring;
+            newSpring = createSpring(temp,temp->child,springConstant);
+            tempSpring->next = newSpring;
+            tempSpring = newSpring;
+            //temp->selected=1;
+            if(temp->father){
+                newSpring = createSpring(temp,temp->father->next,springConstant);
+                tempSpring->next = newSpring;
+                tempSpring = newSpring;
+            }
+        }
+        Spring *newSpring = createSpring(temp,temp->next,springConstant);
+        tempSpring->next = newSpring;
+        tempSpring = newSpring;
+        if(temp->father->next){
+            Spring *newSpring = createSpring(temp,temp->father->next,springConstant);
+            tempSpring->next = newSpring;
+            tempSpring = newSpring;
+        }
+    }
+    temp = tempCol;
+    for(;temp->child;temp=temp->child){
+        Spring *newSpring = createSpring(temp,temp->child,springConstant);
+        tempSpring->next = newSpring;
+        tempSpring = newSpring;
+        //temp->selected=1;
+        //printf("x:%f  y:%f z:%f\n",temp->child->pos[0],temp->child->pos[1],temp->child->pos[2]);
+    }
+    countSprings(springs);
+}
 
 void crearMalla(){
     GLfloat x = xInit;
@@ -53,10 +131,13 @@ void crearMalla(){
         temp->next = newOne;
         temp = newOne;
         temp2 = temp;
+        if(prueba)
+            newOne->fixed=1;
         for(GLint j = 1;j<=divs;j++){
             z-=(tamanoLadoMalla/divs);
-            Particle *newTwo = createParticle(x,y,z);
+            Particle *newTwo = createParticle(x,y,z);//18*(j/divs)*2,z);
             temp2->child = newTwo;
+            newTwo->father = temp2;
             temp2 = newTwo;
         }
         z = zInit;
@@ -69,8 +150,9 @@ void crearMalla(){
         Particle *temp3 = temp->next;
         for(;temp2->child;temp2=temp2->child,temp3=temp3->child)
             temp2->next = temp3;
-
+        temp2->next = temp3;
     }
+    crearResortes();
 }
 void display(){
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -88,16 +170,18 @@ void display(){
     else
         glShadeModel(GL_FLAT);
 
-
     // AQUI EMPIEZA DIBUJABLE
 
 
     glColor3f(1.0,1.0,1.0);
     dibujarMalla(malla,divs);
-    if(mostrarParticulas)
+    if(mostrarParticulas){
         dibujarParticulas(malla);
-
-
+    }
+    glColor3f(0.0,1.0,0.0);
+    static GLUquadricObj * sphere=gluNewQuadric();
+	gluSphere(sphere, radioEsfera, 48, 24);
+    //drawSprings(springs);
     // AQUI TERMINA DIBUJABLE
     glutSwapBuffers();
 }
@@ -136,15 +220,16 @@ void init(){
     glLightfv(GL_LIGHT0, GL_SPECULAR, LightSpc);        // Set Light1 Specular
     glEnable(GL_LIGHT0);                                // Enable Light1
     glEnable(GL_LIGHTING);
-    glEnable(GL_LIGHTING);
-    glEnable(GL_LIGHT0);
     glEnable(GL_NORMALIZE);
     glEnable(GL_COLOR_MATERIAL);
     glEnable(GL_TEXTURE_2D) ;
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE) ;
+    //glColorMaterial(GL_AMBIENT_AND_DIFFUSE);
     glBindTexture(GL_TEXTURE_2D, texName) ;
+    glFrontFace(GL_CW);
+    //glLightModeli(GL_LIGHT_MODEL_TWO_SIDE,GL_FALSE);
 
-    //initTexture();
+    initTexture();
     crearMalla();
 }
 
@@ -201,6 +286,10 @@ void key(unsigned char key, int x, int y){
         case 'p':
             mostrarParticulas = !mostrarParticulas;
             break;
+        case 32:
+            started = !started;
+            //lastUpdate = glutGet(GLUT_ELAPSED_TIME);
+            break;
     }
     glutPostRedisplay();
 }
@@ -220,7 +309,6 @@ void mouse(int button, int state, int x, int y){
         mouseDown = false;
     }
 }
-
 void mouseMotion(int x, int y){
     if(mouseDown){
         rotationX = y - prevY;
@@ -240,5 +328,6 @@ int main(int argc, char** argv){
     glutMouseFunc(mouse);
     glutMotionFunc(mouseMotion);
     glutKeyboardFunc(key);
+    glutIdleFunc(idle);
     glutMainLoop();
 }
