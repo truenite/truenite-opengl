@@ -115,7 +115,7 @@ void idle(void){
         //printf("x1: %f, y1:%f,  z1: %f\n",te->pos[0],te->pos[1],te->pos[2]);
         sumarFuerzaMalla(malla,magGravedad*(GLfloat)gravedad[0]*timeStepSize,magGravedad*(GLfloat)gravedad[1]*timeStepSize,magGravedad*(GLfloat)gravedad[2]*timeStepSize);
         Particle *tira;
-        Spring *temp = springs;
+        Spring *temp = springs->next;
         for(;temp->next;temp=temp->next)
             contrae(temp, springConstant);
         contrae(temp,springConstant);

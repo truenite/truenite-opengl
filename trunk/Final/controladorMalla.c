@@ -33,9 +33,9 @@ Particle *createParticle(GLfloat x, GLfloat y, GLfloat z){
     nuevo->forces[0] = 0;
     nuevo->forces[1] = 0;
     nuevo->forces[2] = 0;
-    nuevo->acl[0] = 0;
-    nuevo->acl[1] = 0;
-    nuevo->acl[2] = 0;
+    nuevo->acl[0] = 0.0f;
+    nuevo->acl[1] = 0.0f;
+    nuevo->acl[2] = 0.0f;
     nuevo->damping = .005;
     nuevo->fixed = 0;
     nuevo->selected = 0;
@@ -272,7 +272,7 @@ void contrae(Spring *s, GLfloat springConstant){
 
     s->tension =  springConstant*extension/s->r;
     //printf("s->tension: %f extension %f , s->r: %f  extension/s-> %f:   magnitudDist: %f\n",s->tension,extension,s->r,extension/s->r,magnitudDist);
-    Particle p = *createParticle(0,0,0);
+
     // PARA s->p1
     GLfloat tensionDirection[3];
     if(s->p2->firstHair == 0){
