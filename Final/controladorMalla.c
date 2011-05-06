@@ -13,7 +13,7 @@ Autor 1: 1162205 Diego Alfonso García Mendiburu
 #include <math.h>
 #include "struct.h"
 
-Particle *createParticle(GLfloat x, GLfloat y, GLfloat z){
+Particle *createParticle(GLfloat x, GLfloat y, GLfloat z, GLint fijadas){
     Particle *nuevo=(Particle *)malloc(sizeof(Particle));
     if(!nuevo){
         printf("Error al alojar memoria");
@@ -37,7 +37,7 @@ Particle *createParticle(GLfloat x, GLfloat y, GLfloat z){
     nuevo->acl[1] = 0.0f;
     nuevo->acl[2] = 0.0f;
     nuevo->damping = .005;
-    nuevo->fixed = 0;
+    nuevo->fixed = fijadas;
     nuevo->selected = 0;
     nuevo->next = NULL;
     nuevo->child = NULL;
@@ -71,7 +71,6 @@ Spring *createSpring(Particle *p1, Particle *p2){
     nuevo->r = Modulo(distancia[0],distancia[1],distancia[2]);
     return nuevo;
 }
-
 GLvoid normaliza(GLfloat *x, GLfloat *y, GLfloat *z){
      GLfloat len;
 
@@ -81,10 +80,7 @@ GLvoid normaliza(GLfloat *x, GLfloat *y, GLfloat *z){
      (*y) *= len;
      (*z) *= len;
 }
-GLvoid productoVectorial(GLfloat V1[], GLfloat V2[], GLfloat V3[],
-                         GLfloat *NormalX,
-                         GLfloat *NormalY,
-                         GLfloat *NormalZ){
+GLvoid productoVectorial(GLfloat V1[], GLfloat V2[], GLfloat V3[],GLfloat *NormalX,GLfloat *NormalY,GLfloat *NormalZ){
      GLfloat Qx, Qy, Qz, Px, Py, Pz;
 
      Px = V2[0]-V1[0];
@@ -96,6 +92,9 @@ GLvoid productoVectorial(GLfloat V1[], GLfloat V2[], GLfloat V3[],
      *NormalX = Py*Qz - Pz*Qy;
      *NormalY = Pz*Qx - Px*Qz;
      *NormalZ = Px*Qy - Py*Qx;
+}
+GLfloat productoPunto(GLfloat V1[], GLfloat V2[]){
+    return V1[0]*V2[0] + V1[1]*V2[1] + V1[2]*V2[2];
 }
 int mismaParticula(Particle *p1, Particle *p2){
     if(p1 == p2)
@@ -142,12 +141,7 @@ void colisionPiso(Particle *p){
     if(p->pos[1]<-9.0)
         p->pos[1]= -9.0;
 }
-void colisionCapsula(Particle *p,
-                     GLfloat radioEsfera,
-                     GLfloat x,
-                     GLfloat y,
-                     GLfloat z,
-                     GLfloat longitud){
+void colisionCapsula(Particle *p,GLfloat radioEsfera,GLfloat x,GLfloat y,GLfloat z,GLfloat longitud){
     //if(p->pos[2]<longitud/2+radioEsfera+z && p->pos[2]<z+longitud/2-radioEsfera){}
     GLfloat P1 = 0.0f;
     GLfloat P2 = 0.0f;
@@ -156,6 +150,83 @@ void colisionCapsula(Particle *p,
     distancia[1] = p->pos[1]-y;
     distancia[2] = p->pos[2]-z;
 
+}
+void quitarCabello(Particle *p, Spring *springs){
+    Particle *temp = p->hair;
+    Spring *s  = springs;
+    for(;temp->hair;temp = temp->hair){
+        for(;s->next;s=s->next){
+            if(mismaParticula(s->next->p1,temp) == 1 || mismaParticula(s->next->p2,temp) == 1){
+                if(s->next->next)
+                    s->next=s->next->next;
+                else
+                    s->next = NULL;
+            }
+        }
+    }
+    p->hair = NULL;
+}
+void hacerCabello(Particle *p, Spring *springs, GLint numParticulasCabello, GLfloat distParticulaCabello){
+    GLint parts;
+    Particle *temp3 = p;
+    for(parts = 1; parts<numParticulasCabello+1;parts++){
+        Particle *newOne = createParticle(p->pos[0]+.002,p->pos[1]+distParticulaCabello*parts,p->pos[2],0);
+        temp3->hair = newOne;
+        temp3 = newOne;
+        if(parts == 1)
+            temp3->firstHair = 1;
+    }
+    Spring *s  = springs;
+    for(;s->next;s=s->next)
+        ;
+    temp3 = p;
+    for(;temp3->hair;temp3=temp3->hair){
+        Spring *newSpring = createSpring(temp3,temp3->hair);
+        s->next = newSpring;
+        s = newSpring;
+    }
+}
+void hacerTiraParticulaSeleccionada(Particle *malla, Spring *springs, GLint numParticulasCabello, GLfloat distParticulaCabello){
+    Particle *temp = malla;
+    Particle *tira;
+    Particle *tempCol = malla->next;
+    int cont = 0;
+    for(;tempCol->next;tempCol=tempCol->next){
+        temp = tempCol;
+        for(;temp->child;temp=temp->child){
+            if(temp->selected==1){
+                if(temp->hair){
+                    quitarCabello(temp,springs);
+                }else{
+                    hacerCabello(temp,springs,numParticulasCabello,distParticulaCabello);
+                }
+            }
+        }
+        if(temp->selected==1){
+            if(temp->hair){
+                quitarCabello(temp,springs);
+            }else{
+                hacerCabello(temp,springs,numParticulasCabello,distParticulaCabello);
+            }
+        }
+    }
+    temp = tempCol;
+    for(;temp->child;temp=temp->child){
+        if(temp->selected==1){
+            if(temp->hair){
+                quitarCabello(temp,springs);
+            }else{
+                hacerCabello(temp,springs,numParticulasCabello,distParticulaCabello);
+            }
+        }
+    }
+    if(temp->selected==1){
+        if(temp->hair){
+            quitarCabello(temp,springs);
+        }else{
+            hacerCabello(temp,springs,numParticulasCabello,distParticulaCabello);
+        }
+    }
 }
 void fijarSelecionada(Particle *malla){
     Particle *temp = malla;
@@ -202,13 +273,36 @@ int particulaFijada(Particle *malla){
         return 1;
     return 0;
 }
+int particulaConTira(Particle *malla){
+    Particle *temp = malla;
+    Particle *tira;
+    Particle *tempCol = malla->next;
+    int cont = 0;
+    for(;tempCol->next;tempCol=tempCol->next){
+        temp = tempCol;
+        for(;temp->child;temp=temp->child){
+            if(temp->hair && temp->selected==1)
+                return 1;
+        }
+        if(temp->hair && temp->selected==1)
+            return 1;
+    }
+    temp = tempCol;
+    for(;temp->child;temp=temp->child){
+        if(temp->hair && temp->selected==1)
+            return 1;
+    }
+    if(temp->hair && temp->selected==1)
+        return 1;
+    return 0;
+}
 void colisionMouseParticula(Particle *p, GLfloat x, GLfloat y, GLfloat z, GLfloat radioParticulas){
     GLfloat distancia[3];
     distancia[0] = x-p->pos[0];
     distancia[1] = y-p->pos[1];
     distancia[2] = z-p->pos[2];
     GLfloat longitud = Modulo(distancia[0],distancia[1],distancia[2]);
-    if(longitud*longitud<radioParticulas*1.08f*1.08f*radioParticulas){
+    if(longitud*longitud<radioParticulas*1.2f*1.2f*radioParticulas){
         p->selected=(p->selected+1)%2;
     }
 }
@@ -387,6 +481,60 @@ void sumarFuerzaMalla(Particle *malla, GLfloat cx, GLfloat cy, GLfloat cz){
         }
         sumarFuerza(tira,cx,cy,cz);
     }
+}
+void sumarFuerzaViento(Particle *malla, GLfloat cx, GLfloat cy, GLfloat cz){
+    Particle *temp = malla;
+    Particle *tempCol = malla->next;
+    tempCol = malla->next;
+    for(;tempCol->next;tempCol=tempCol->next){
+        temp = tempCol;
+        for(;temp->child;temp=temp->child){
+            GLfloat NormalX, NormalY, NormalZ;
+            GLfloat V1[3];
+            GLfloat V2[3];
+            GLfloat V3[3];
+            GLfloat V4[3];
+            V1[0] = temp->pos[0];
+            V1[1] = temp->pos[1];
+            V1[2] = temp->pos[2];
+            V2[0] = temp->next->pos[0];
+            V2[1] = temp->next->pos[1];
+            V2[2] = temp->next->pos[2];
+            V3[0] = temp->child->pos[0];
+            V3[1] = temp->child->pos[1];
+            V3[2] = temp->child->pos[2];
+            V4[0] = temp->child->next->pos[0];
+            V4[1] = temp->child->next->pos[1];
+            V4[2] = temp->child->next->pos[2];
+            productoVectorial(V1, V3, V2, &NormalX, &NormalY, &NormalZ);
+            normaliza(&NormalX, &NormalY, &NormalZ);
+            GLfloat normalizado[] = {NormalX,NormalY,NormalZ};
+            GLfloat vec2[] = {cx,cy,cz};
+            GLfloat pPunto = productoPunto(normalizado,vec2);
+            GLfloat fuerza[] = {NormalX*pPunto, NormalZ*pPunto, NormalZ*pPunto};
+            sumarFuerza(temp,fuerza[0],fuerza[1],fuerza[2]);
+            sumarFuerza(temp->child,fuerza[0],fuerza[1],fuerza[2]);
+            sumarFuerza(temp->next,fuerza[0],fuerza[1],fuerza[2]);
+
+
+            productoVectorial(V2, V3, V4, &NormalX, &NormalY, &NormalZ);
+            normaliza(&NormalX, &NormalY, &NormalZ);
+            normalizado[0] = NormalX;
+            normalizado[1] = NormalY;
+            normalizado[2] = NormalZ;
+            vec2[0] = cx;
+            vec2[1] = cy;
+            vec2[2] = cz;
+            pPunto = productoPunto(normalizado,vec2);
+            fuerza[0] = NormalX*pPunto;
+            fuerza[1] = NormalZ*pPunto;
+            fuerza[2] = NormalZ*pPunto;
+            sumarFuerza(temp->next,fuerza[0],fuerza[1],fuerza[2]);
+            sumarFuerza(temp->child,fuerza[0],fuerza[1],fuerza[2]);
+            sumarFuerza(temp->child->next,fuerza[0],fuerza[1],fuerza[2]);
+        }
+    }
+
 }
 void drawSprings(Spring *s){
     Spring *temp = s->next;
