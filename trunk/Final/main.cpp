@@ -16,11 +16,12 @@ Autor 1: 1162205 Diego Alfonso García Mendiburu
 GLfloat damping = 0.033f;
 GLfloat magGravedad = -0.005f;
 GLint gravedad[3] = {0,1,0};
+GLint hacerViento = 0;
+GLfloat viento[3] = {0.001f,0.0f,0.001f};
 GLfloat springConstant=0.03f;
 static GLfloat timeStepSize = 0.5*0.5;
 GLint ventanaX = 800;
 GLint ventanaY = 600;
-static GLint tamanoVista = 100;
 static GLint minDiv = 10;
 static GLint maxDiv = 40;
 GLint divs = 15;
@@ -49,10 +50,14 @@ GLfloat radioParticulas = 0.2f;
 GLfloat posicionEsferasCilindro[] = {0.0f,0.0f,3.0f,0.0f,0.0f,-3.0f};
 GLint collider = 0;
 GLint seleccionada = 0;
+GLint seleccionadaTira = 0;
+GLdouble mposX, mposY, mposZ; // posicion 3d del mouse
+GLint fijadas = 0;
 GLfloat distParticulaCabello = 0.3f;
 GLint numParticulasCabello = 3;
-GLdouble mposX, mposY, mposZ; // posicion 3d del mouse
 GLint hacerTiras=0;
+GLint tieneTira = 0;
+
 /** GLUI **/
 
 float xy_aspect;
@@ -74,16 +79,15 @@ int   show_axes = 1;
 int   show_text = 1;
 float view_rotate[16] = { 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 };
 float obj_pos[] = { 0.0, 0.0, 0.0 };
+float collider_rotation[16] = { 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 };
 float collider_pos[] = { 0.0, 0.0, 0.0 };
-char *string_list[] = { "Hello World!", "Foo", "Testing...", "Bounding box: on" };
-int   curr_string = 0;
 
 /** Pointers to the windows and some of the controls we'll create **/
 GLUI *glui, *glui2;
 GLUI_Spinner    *light0_spinner, *spinnerDivs, *tiras;
 GLUI_RadioGroup *radio;
-GLUI_Panel *obj_panel;
-GLUI_Checkbox *fijar;
+GLUI_Panel *obj_panel, *panelViento;
+GLUI_Checkbox *fijar, *partFijadas, *hacerTiraParticula;
 /********** User IDs for callbacks ********/
 #define LIGHT0_ENABLED_ID    200
 #define LIGHT0_INTENSITY_ID  250
@@ -94,6 +98,8 @@ GLUI_Checkbox *fijar;
 #define OBJECT_TYPE_ID       105
 #define HACER_TIRAS_ID       106
 #define FIJAR_ID             107
+#define HACERVIENTO_ID       108
+#define HACER_TIRA_PARTICULA_ID 109
 
 /*** LIGHTS ***/
 GLfloat lights_rotation[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 };
@@ -114,6 +120,8 @@ void idle(void){
     if (started && !paused) {
         //printf("x1: %f, y1:%f,  z1: %f\n",te->pos[0],te->pos[1],te->pos[2]);
         sumarFuerzaMalla(malla,magGravedad*(GLfloat)gravedad[0]*timeStepSize,magGravedad*(GLfloat)gravedad[1]*timeStepSize,magGravedad*(GLfloat)gravedad[2]*timeStepSize);
+        if(hacerViento == 1)
+            sumarFuerzaViento(malla, viento[0],viento[1],viento[2]);
         Particle *tira;
         Spring *temp = springs->next;
         for(;temp->next;temp=temp->next)
@@ -128,44 +136,44 @@ void idle(void){
                 if(collider)
                     ;//colisionCapsula(tempM,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2],longitudCapsula);
                 else
-                    colisionEsfera(tempM,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2]);
+                    colisionEsfera(tempM,radioEsfera,collider_pos[0],collider_pos[1],-collider_pos[2]);
                 if(tempM->hair){
                     tira = tempM->hair;
                     for(;tira->hair;tira=tira->hair){
                         timeStep(tira,timeStepSize,damping);
                         if(collider)
-                            ;//colisionCapsula(tempM,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2],longitudCapsula);
+                            ;//colisionCapsula(tira,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2],longitudCapsula);
                         else
-                            colisionEsfera(tempM,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2]);
+                            colisionEsfera(tira,radioEsfera,collider_pos[0],collider_pos[1],-collider_pos[2]);
                     }
                     timeStep(tira,timeStepSize,damping);
                     //printf("2posx: %f  posy: %f  posz: %f\n",tira->pos[0],tira->pos[1],tira->pos[2]);
                     if(collider)
-                        ;//colisionCapsula(tempM,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2],longitudCapsula);
+                        ;//colisionCapsula(tira,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2],longitudCapsula);
                     else
-                        colisionEsfera(tempM,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2]);
+                        colisionEsfera(tira,radioEsfera,collider_pos[0],collider_pos[1],-collider_pos[2]);
                 }
             }
             timeStep(tempM,timeStepSize,damping);
             if(collider)
                 ;//colisionCapsula(tempM,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2],longitudCapsula);
             else
-                colisionEsfera(tempM,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2]);
+                colisionEsfera(tempM,radioEsfera,collider_pos[0],collider_pos[1],-collider_pos[2]);
             if(tempM->hair){
                 tira = tempM->hair;
                 for(;tira->hair;tira=tira->hair){
                     timeStep(tira,timeStepSize,damping);
                     if(collider)
-                        ;//colisionCapsula(tempM,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2],longitudCapsula);
+                        ;//colisionCapsula(tira,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2],longitudCapsula);
                     else
-                        colisionEsfera(tempM,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2]);
+                        colisionEsfera(tira,radioEsfera,collider_pos[0],collider_pos[1],-collider_pos[2]);
                 }
                 timeStep(tira,timeStepSize,damping);
                 //printf("2posx: %f  posy: %f  posz: %f\n",tira->pos[0],tira->pos[1],tira->pos[2]);
                 if(collider)
-                    ;//colisionCapsula(tempM,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2],longitudCapsula);
+                    ;//colisionCapsula(tira,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2],longitudCapsula);
                 else
-                    colisionEsfera(tempM,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2]);
+                    colisionEsfera(tira,radioEsfera,collider_pos[0],collider_pos[1],-collider_pos[2]);
             }
         }
         tempM = tempCol;
@@ -174,7 +182,7 @@ void idle(void){
             if(collider)
                 ;//colisionCapsula(tempM,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2],longitudCapsula);
             else
-                colisionEsfera(tempM,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2]);
+                colisionEsfera(tempM,radioEsfera,collider_pos[0],collider_pos[1],-collider_pos[2]);
             if(tempM->hair){
                 tira = tempM->hair;
                 for(;tira->hair;tira=tira->hair){
@@ -182,38 +190,38 @@ void idle(void){
                     timeStep(tira,timeStepSize,damping);
                     //printf("2posx: %f  posy: %f  posz: %f\n",tira->pos[0],tira->pos[1],tira->pos[2]);
                     if(collider)
-                        ;//colisionCapsula(tempM,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2],longitudCapsula);
+                        ;//colisionCapsula(tira,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2],longitudCapsula);
                     else
-                        colisionEsfera(tempM,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2]);
+                        colisionEsfera(tira,radioEsfera,collider_pos[0],collider_pos[1],-collider_pos[2]);
                 }
                 timeStep(tira,timeStepSize,damping);
                 //printf("2posx: %f  posy: %f  posz: %f\n",tira->pos[0],tira->pos[1],tira->pos[2]);
                 if(collider)
-                    ;//colisionCapsula(tempM,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2],longitudCapsula);
+                    ;//colisionCapsula(tira,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2],longitudCapsula);
                 else
-                    colisionEsfera(tempM,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2]);
+                    colisionEsfera(tira,radioEsfera,collider_pos[0],collider_pos[1],-collider_pos[2]);
             }
         }
         timeStep(tempM,timeStepSize,damping);
         if(collider)
             ;//colisionCapsula(tempM,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2],longitudCapsula);
         else
-            colisionEsfera(tempM,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2]);
+            colisionEsfera(tempM,radioEsfera,collider_pos[0],collider_pos[1],-collider_pos[2]);
         if(tempM->hair){
             tira = tempM->hair;
             for(;tira->hair;tira=tira->hair){
                 timeStep(tira,timeStepSize,damping);
                 if(collider)
-                    ;//colisionCapsula(tempM,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2],longitudCapsula);
+                    ;//colisionCapsula(tira,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2],longitudCapsula);
                 else
-                    colisionEsfera(tempM,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2]);
+                    colisionEsfera(tira,radioEsfera,collider_pos[0],collider_pos[1],-collider_pos[2]);
             }
             timeStep(tira,timeStepSize,damping);
             //printf("2posx: %f  posy: %f  posz: %f\n",tira->pos[0],tira->pos[1],tira->pos[2]);
             if(collider)
-                ;//colisionCapsula(tempM,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2],longitudCapsula);
+                ;//colisionCapsula(tira,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2],longitudCapsula);
             else
-                colisionEsfera(tempM,radioEsfera,collider_pos[0],collider_pos[1],collider_pos[2]);
+                colisionEsfera(tira,radioEsfera,collider_pos[0],collider_pos[1],-collider_pos[2]);
         }
         //printf("x2: %f, y2:%f,  z2: %f\n",te->pos[0],te->pos[1],te->pos[2]);
         //started=!started;
@@ -298,7 +306,7 @@ void crearMalla(){
     Particle *temp2;
     Particle *temp3;
     for(GLint i = 0;i<=divs;i++){
-        Particle *newOne = createParticle(x,y,z);
+        Particle *newOne = createParticle(x,y,z,fijadas);
         temp->next = newOne;
         temp = newOne;
         temp2 = temp;
@@ -306,7 +314,7 @@ void crearMalla(){
         if(hacerTiras == 1){
             temp3 = newOne;
             for(GLint parts = 1; parts<numParticulasCabello+1;parts++){
-                Particle *newOne = createParticle(x,y+distParticulaCabello*parts,z);
+                Particle *newOne = createParticle(x+.002,y+distParticulaCabello*parts,z,0);
                 temp3->hair = newOne;
                 temp3 = newOne;
                 if(parts == 1)
@@ -317,7 +325,7 @@ void crearMalla(){
             newOne->fixed=1;
         for(GLint j = 1;j<=divs;j++){
             z-=(tamanoLadoMalla/divs);
-            Particle *newTwo = createParticle(x,y,z);//18*(j/divs)*2,z);
+            Particle *newTwo = createParticle(x,y,z,fijadas);//18*(j/divs)*2,z);
             temp2->child = newTwo;
             newTwo->father = temp2;
             temp2 = newTwo;
@@ -325,7 +333,7 @@ void crearMalla(){
                 // CODIGO PARA CREAR TIRAS
                 temp3 = newTwo;
                 for(GLint parts = 1; parts<numParticulasCabello+1;parts++){
-                    Particle *newOne = createParticle(x,y+distParticulaCabello*parts,z);
+                    Particle *newOne = createParticle(x+.002,y+distParticulaCabello*parts,z,0);
                     temp3->hair = newOne;
                     temp3 = newOne;
                     if(parts == 1)
@@ -378,7 +386,6 @@ void display(){
         glDisable(GL_TEXTURE_2D);
 
     // AQUI EMPIEZA DIBUJABLE
-
     glTranslatef( obj_pos[0], obj_pos[1], -obj_pos[2] );
     glColor3f(1.0,1.0,1.0);
     dibujarMalla(malla,divs);
@@ -409,7 +416,9 @@ void display(){
         gluSphere(sphere2, radioEsfera, 48, 24);
     }
     else{
-        glTranslatef( collider_pos[0], collider_pos[1], -collider_pos[2]);
+
+        glTranslatef( collider_pos[0], collider_pos[1],-collider_pos[2]);
+        glMultMatrixf( collider_rotation );
         static GLUquadricObj * sphere=gluNewQuadric();
         gluSphere(sphere, radioEsfera, 48, 24);
     }
@@ -417,7 +426,6 @@ void display(){
     // AQUI TERMINA DIBUJABLE
     glutSwapBuffers();
 }
-
 void initTexture(){
    int w, h, d;
    FILE *fp;
@@ -441,7 +449,7 @@ void initTexture(){
 }
 
 void init(){
-    //initTexture();
+    initTexture();
     crearMalla();
 }
 void reset(){
@@ -449,8 +457,12 @@ void reset(){
     started = 0;
     paused = 1;
     radio->enable();
-    tiras->enable();
     spinnerDivs->enable();
+    if(hacerTiras == 1){
+        hacerTiraParticula->enable();
+        partFijadas->enable();
+        tiras->enable();
+    }
     glutPostRedisplay();
 }
 void disables(){
@@ -485,12 +497,14 @@ void key(unsigned char key, int x, int y){
             viewer[0]-= 0.3;
             break;
         case 'X':
+        case 'c':
             viewer[0]+= 0.3;
             break;
         case 'z':
             viewer[2]-= 0.3;
             break;
         case 'Z':
+        case 'a':
             viewer[2]+= 0.3;
             break;
         case 'y':
@@ -527,6 +541,8 @@ void key(unsigned char key, int x, int y){
                 spinnerDivs->disable();
                 radio->disable();
                 tiras->disable();
+                hacerTiraParticula->disable();
+                partFijadas->disable();
             }
             paused = !paused;
             //lastUpdate = glutGet(GLUT_ELAPSED_TIME);
@@ -592,7 +608,9 @@ void mouse(int button, int state, int x, int y){
         GetOGLPos(x,y);
         colisionMouseMalla(malla, mposX, mposY, mposZ, radioParticulas);
         seleccionada = particulaFijada(malla);
+        seleccionadaTira = particulaConTira(malla);
         fijar->set_int_val(seleccionada);
+        hacerTiraParticula->set_int_val(seleccionadaTira);
     }
     glutPostRedisplay();
 }
@@ -605,11 +623,24 @@ void mouseMotion(int x, int y){
 }
 void control_cb( int control )
 {
-    if(control == FIJAR_ID){
+    if(control == HACER_TIRA_PARTICULA_ID){
+        hacerTiraParticulaSeleccionada(malla,springs,numParticulasCabello,distParticulaCabello);
+    }
+    else if(control == FIJAR_ID){
         fijarSelecionada(malla);
     }
     else if(control == HACER_TIRAS_ID){
         reset();
+        if(hacerTiras == 0){
+            tiras->disable();
+            partFijadas->disable();
+            partFijadas->set_int_val(0);
+            hacerTiraParticula->disable();
+        }else{
+            tiras->enable();
+            partFijadas->enable();
+            hacerTiraParticula->enable();
+        }
     }
     else if(control == DIVISIONES_ID){
         reset();
@@ -643,6 +674,8 @@ void control_cb( int control )
             paused = !paused;
             radio->disable();
             tiras->disable();
+            hacerTiraParticula->disable();
+            partFijadas->disable();
         }
     }
     else if ( control == PAUSED_ID )
@@ -741,6 +774,12 @@ int main(int argc, char** argv){
     new GLUI_Checkbox( options, "Hacer Tiras", &hacerTiras, HACER_TIRAS_ID, control_cb);
     tiras= new GLUI_Spinner( options, "Longitud tiras:", &numParticulasCabello , HACER_TIRAS_ID, control_cb);
     tiras->set_int_limits( 1, 6 );
+    tiras->disable();
+    partFijadas = new GLUI_Checkbox( options, "Fijar", &fijadas, HACER_TIRAS_ID, control_cb);
+    partFijadas->disable();
+    hacerTiraParticula = new GLUI_Checkbox( options, "Poner/Quitar tira", &tieneTira, HACER_TIRA_PARTICULA_ID, control_cb);
+    hacerTiraParticula->disable();
+
 
     GLUI_Rollout *physics = new GLUI_Rollout(glui, "Physics", false);
 
@@ -767,6 +806,18 @@ int main(int argc, char** argv){
     GLUI_Spinner *spinnerPartRadius = new GLUI_Spinner( physics, "Particles radius:", &radioParticulas);
     spinnerPartRadius->set_float_limits( 0.09f , 1.0f, GLUI_LIMIT_CLAMP);
     spinnerPartRadius->set_alignment( GLUI_ALIGN_RIGHT );
+
+    panelViento = new GLUI_Panel( physics, "Wind" );//HACERVIENTO_ID
+    new GLUI_Checkbox( panelViento, "Wind", &hacerViento, HACERVIENTO_ID);
+    GLUI_Spinner *vientoX= new GLUI_Spinner( panelViento, "x:", &viento[0]);
+    vientoX->set_float_limits(0, 0.01 );//0.001
+    vientoX->set_alignment( GLUI_ALIGN_RIGHT );
+    GLUI_Spinner *vientoY= new GLUI_Spinner( panelViento, "y:", &viento[1]);
+    vientoY->set_float_limits(0, 0.01 );//0.001
+    vientoY->set_alignment( GLUI_ALIGN_RIGHT );
+    GLUI_Spinner *vientoZ= new GLUI_Spinner( panelViento, "z:", &viento[2]);
+    vientoZ->set_float_limits(0, 0.01 );//0.001
+    vientoZ->set_alignment( GLUI_ALIGN_RIGHT );
 
     obj_panel = new GLUI_Panel( glui, "Object Type" );
     radio = new GLUI_RadioGroup( obj_panel,&collider,OBJECT_TYPE_ID,control_cb );
@@ -797,22 +848,27 @@ int main(int argc, char** argv){
     new GLUI_Column( glui2, false );
     GLUI_Rotation *lights_rot = new GLUI_Rotation(glui2, "Light", lights_rotation );
     lights_rot->set_spin( .82 );
+
+    new GLUI_Column( glui2, false );
+    GLUI_Rotation *collider_rot = new GLUI_Rotation(glui2, "Collider", collider_rotation );
+    collider_rot->set_spin(1.0);
+
     new GLUI_Column( glui2, false );
     GLUI_Translation *trans_xy =
     new GLUI_Translation(glui2, "Scene XY", GLUI_TRANSLATION_XY, obj_pos );
-    trans_xy->set_speed( .005 );
+    trans_xy->set_speed( .01 );
     new GLUI_Column( glui2, false );
     GLUI_Translation *trans_z =
     new GLUI_Translation( glui2, "Scene Z", GLUI_TRANSLATION_Z, &obj_pos[2] );
-    trans_z->set_speed( .005 );
+    trans_z->set_speed( .01 );
     new GLUI_Column( glui2, false );
     GLUI_Translation *trans_xyCol =
     new GLUI_Translation(glui2, "Collider XY", GLUI_TRANSLATION_XY, collider_pos );
-    trans_xyCol->set_speed( .005 );
+    trans_xyCol->set_speed( .01 );
     new GLUI_Column( glui2, false );
     GLUI_Translation *trans_zCol =
     new GLUI_Translation( glui2, "Collider Z", GLUI_TRANSLATION_Z, &collider_pos[2] );
-    trans_zCol->set_speed( .005 );
+    trans_zCol->set_speed( .01 );
     init();
     /**** We register the idle callback with GLUI, *not* with GLUT ****/
     GLUI_Master.set_glutIdleFunc(idle);
